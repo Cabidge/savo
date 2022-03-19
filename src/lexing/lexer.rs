@@ -31,6 +31,7 @@ pub enum TokenKind {
     LArrow, // <-
     RArrow, // ->
 
+    Comma,     // ,
     Semicolon, // ;
 
     LParen, // (
@@ -104,6 +105,10 @@ impl Lexer {
             } else {
                 TokenKind::GT // >
             };
+        }
+
+        if self.stream.eat_current(',') {
+            return TokenKind::Comma; // ;
         }
 
         if self.stream.eat_current(';') {
@@ -231,6 +236,7 @@ impl fmt::Display for TokenKind {
             TokenKind::LArrow => write!(f, "[LArrow]"),
             TokenKind::RArrow => write!(f, "[RArrow]"),
 
+            TokenKind::Comma     => write!(f, "[,]"),
             TokenKind::Semicolon => write!(f, "[;]"),
 
             TokenKind::LParen => write!(f, "[LParen]"),
@@ -238,7 +244,7 @@ impl fmt::Display for TokenKind {
             TokenKind::LBrace => write!(f, "[LBrace]"),
             TokenKind::RBrace => write!(f, "[RBrace]"),
 
-            _ => unimplemented!(),
+            TokenKind::EOF | TokenKind::Error(_) => unimplemented!(),
         }
     }
 }
