@@ -15,7 +15,7 @@ pub fn lex(src: &str) -> Result<Vec<lexer::Token>, ()> {
                     InvalidValue(v) => format!("Invalid value `{}`", v),
                 };
 
-                println!("Error: {} at {}:{}", msg, token.line, token.col);
+                eprintln!("Error: {} at {}:{}", msg, token.line, token.col);
 
                 has_error = true;
             },
