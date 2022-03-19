@@ -1,3 +1,5 @@
+mod lexing;
+
 fn main() {
-    println!("Hello, world!");
+    lexing::lex("let x = 12;").unwrap();
 }
