@@ -1,3 +1,4 @@
+use std::fmt;
 use super::char_stream::CharStream;
 
 pub struct Lexer {
@@ -206,4 +207,38 @@ impl Iterator for Lexer {
 
 fn is_ident(ch: char) -> bool {
     ch.is_alphanumeric() || ch == '_'
+}
+
+impl fmt::Display for TokenKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TokenKind::Value(val)   => write!(f, "[Value:{}]", val),
+            TokenKind::Let          => write!(f, "[Let]"),
+            TokenKind::Ident(ident) => write!(f, "[Ident:{}]", ident),
+
+            TokenKind::EQ => write!(f, "[EQ]"),
+            TokenKind::LT => write!(f, "[LT]"),
+            TokenKind::GT => write!(f, "[GT]"),
+            TokenKind::NE => write!(f, "[NE]"),
+            TokenKind::GE => write!(f, "[GE]"),
+            TokenKind::LE => write!(f, "[LE]"),
+
+            TokenKind::Add => write!(f, "[Add]"),
+            TokenKind::Sub => write!(f, "[Sub]"),
+            TokenKind::Mul => write!(f, "[Mul]"),
+            TokenKind::Div => write!(f, "[Div]"),
+
+            TokenKind::LArrow => write!(f, "[LArrow]"),
+            TokenKind::RArrow => write!(f, "[RArrow]"),
+
+            TokenKind::Semicolon => write!(f, "[;]"),
+
+            TokenKind::LParen => write!(f, "[LParen]"),
+            TokenKind::RParen => write!(f, "[RParen]"),
+            TokenKind::LBrace => write!(f, "[LBrace]"),
+            TokenKind::RBrace => write!(f, "[RBrace]"),
+
+            _ => unimplemented!(),
+        }
+    }
 }
