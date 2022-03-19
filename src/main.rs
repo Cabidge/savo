@@ -12,6 +12,8 @@ fn main() {
     };
 
     for tok in tokens {
-        println!("{}", tok.kind);
+        print!("{}", tok.kind);
     }
+
+    println!("");
 }
