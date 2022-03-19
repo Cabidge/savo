@@ -1,0 +1,7 @@
+let x = 12;
+
+x = 8;
+
+let f(x, y) {
+    return x + y;
+}
