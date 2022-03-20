@@ -5,13 +5,14 @@ pub struct Lexer {
     stream: CharStream,
 }
 
+#[derive(Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub line: usize,
     pub col: usize,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum TokenKind {
     Value(f64),
     Let,
@@ -44,7 +45,7 @@ pub enum TokenKind {
     EOF,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum ErrorKind {
     UnexpectedChar(char),
     InvalidValue(String),
