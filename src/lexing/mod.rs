@@ -1,4 +1,6 @@
-use lexer::{ TokenKind, ErrorKind::* };
+pub use lexer::{ Token, TokenKind };
+use lexer::ErrorKind::*;
+
 mod lexer;
 mod char_stream;
 
