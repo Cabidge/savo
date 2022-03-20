@@ -1,3 +1,5 @@
+#![feature(never_type)]
+
 use std::process;
 use std::fs;
 
