@@ -1,11 +1,11 @@
-let f(x, y) {
-    -> x + y;
-}
-
 let main() {
     let x = 12;
 
-    x <- 8;
+    x <- f(x, x);
 
     -> 18.2; # prints to stdout
+}
+
+let f(x, y) {
+    -> x + y;
 }
