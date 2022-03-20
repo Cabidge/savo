@@ -2,6 +2,7 @@ use std::process;
 use std::fs;
 
 mod lexing;
+mod parsing;
 
 fn main() {
     let source = fs::read_to_string("src/main.savo").unwrap();
