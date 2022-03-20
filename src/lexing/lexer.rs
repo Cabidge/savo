@@ -48,6 +48,16 @@ pub enum ErrorKind {
     InvalidValue(String),
 }
 
+impl Token {
+    pub fn eof() -> Self {
+        Token {
+            kind: TokenKind::EOF,
+            line: 0,
+            col: 0,
+        }
+    }
+}
+
 impl Lexer {
     pub fn new(src: &str) -> Self {
         Lexer {
