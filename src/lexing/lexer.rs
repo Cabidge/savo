@@ -11,6 +11,7 @@ pub struct Token {
     pub col: usize,
 }
 
+#[derive(PartialEq)]
 pub enum TokenKind {
     Value(f64),
     Let,
@@ -43,6 +44,7 @@ pub enum TokenKind {
     EOF,
 }
 
+#[derive(PartialEq)]
 pub enum ErrorKind {
     UnexpectedChar(char),
     InvalidValue(String),
