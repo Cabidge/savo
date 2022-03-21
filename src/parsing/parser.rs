@@ -69,6 +69,8 @@ impl Parser {
         let mut errors = Vec::<Error>::new();
 
         while self.current().kind != TokenKind::EOF {
+            while self.eat_current(&TokenKind::Semicolon) {};
+
             let res = if self.current().kind == TokenKind::Let {
                 self.parse_let()
             } else {
