@@ -12,7 +12,7 @@ pub struct Token {
     pub col: usize,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum TokenKind {
     Value(f64),
     Let,
