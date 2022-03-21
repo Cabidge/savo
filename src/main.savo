@@ -1,3 +1,5 @@
+let glob = 18;
+
 let main() {
     let x = 12;
 
