@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::fmt;
 use crate::lexing::{ Token, TokenKind::{ self, * } };
 
 #[derive(Debug)]
@@ -192,7 +193,7 @@ impl Parser {
                     Ok(expr) => {
                         exprs.push(expr);
                         if !self.eat_current(&TokenKind::Semicolon) {
-                            ErrorKind::ExpectSemicolonAfterStmt.raise_from(self.current());
+                            ErrorKind::ExpectSemicolonAfterStmt.raise_from(self.current())?;
                         }
                     },
                     Err(err) => error = Some(err),
@@ -369,6 +370,75 @@ impl Parser {
 
     fn peek(&self) -> &Token {
         self.get_token(self.index + 1)
+    }
+}
+
+impl fmt::Display for Root {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Globals:\n")?;
+        for (name, val) in self.globals.iter() {
+            write!(f, "  {} = {}\n", name, val)?;
+        }
+
+        write!(f, "\nFunctions:\n")?;
+        for (name, (params, body)) in self.funcs.iter() {
+            write!(f, "  {}(", name)?;
+            
+            {
+                let mut params = params.iter();
+                if let Some(param) = params.next() {
+                    write!(f, "{}", param)?;
+                    for param in params {
+                        write!(f, ", {}", param)?;
+                    }
+                }
+            }
+
+            write!(f, ")\n")?;
+
+            for expr in body.iter() {
+                write!(f, "    {}\n", expr)?;
+            }
+
+            write!(f, "\n")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl fmt::Display for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &*self.kind {
+            ExprKind::BinOp(lhs, rhs) => write!(f, "({} {} {})", self.token.kind, lhs, rhs),
+            ExprKind::Call(args) => {
+                write!(f, "({}", self.token.kind)?;
+                for arg in args.iter() {
+                    write!(f, " {}", arg)?;
+                }
+                write!(f, ")")?;
+
+                Ok(())
+            },
+            kind => kind.fmt(f),
+        }
+    }
+}
+
+impl fmt::Display for ExprKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ExprKind::Value(v) => v.fmt(f),
+            ExprKind::Var(name, expr) => write!(f, "(let {} {})", name, expr),
+            ExprKind::Func(name, _, _) => write!(f, "(let {}(...) ...)", name),
+            ExprKind::Set(name, expr) => write!(f, "({} <- {})", name, expr),
+            ExprKind::Get(name) => name.fmt(f),
+            ExprKind::Return(expr) => write!(f, "(-> {})", expr),
+            ExprKind::Negate(expr) => write!(f, "(neg {})", expr),
+            ExprKind::BinOp(_, _) |
+            ExprKind::Call(_) => unimplemented!(),
+            _ => todo!(),
+        }
     }
 }
 

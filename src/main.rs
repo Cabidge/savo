@@ -24,5 +24,5 @@ fn main() {
         Err(_) => process::exit(1),
     };
 
-    println!("{:?}", ast_root);
+    println!("{}", ast_root);
 }
