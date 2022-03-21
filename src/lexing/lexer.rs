@@ -5,7 +5,7 @@ pub struct Lexer {
     stream: CharStream,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Token {
     pub kind: TokenKind,
     pub line: usize,
