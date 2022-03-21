@@ -5,6 +5,7 @@ use std::fs;
 
 mod lexing;
 mod parsing;
+mod compiling;
 
 fn main() {
     let source = fs::read_to_string("src/main.savo").unwrap();
