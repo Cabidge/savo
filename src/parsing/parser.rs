@@ -34,11 +34,13 @@ pub enum ExprKind {
     Call(Vec<Expr>),
 }
 
+#[derive(Debug)]
 pub struct Error {
     kind: ErrorKind,
     token: Token,
 }
 
+#[derive(Debug)]
 pub enum ErrorKind {
     ExpectLetInGlobal,
     ExpectIdentAfterLet,

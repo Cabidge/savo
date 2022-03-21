@@ -14,7 +14,10 @@ pub fn parse_tokens(tokens: Vec<Token>) -> Result<Root, ()> {
     match parser.parse() {
         Ok(root) => Ok(root),
         Err(errs) => {
-            todo!();
+            for err in errs.iter() {
+                println!("{:?}", err);
+            }
+            Err(())
         },
     }
 }
