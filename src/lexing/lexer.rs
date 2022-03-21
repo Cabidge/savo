@@ -45,7 +45,7 @@ pub enum TokenKind {
     EOF,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum ErrorKind {
     UnexpectedChar(char),
     InvalidValue(String),
