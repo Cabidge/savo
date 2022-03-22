@@ -10,8 +10,8 @@ pub struct Parser {
 
 #[derive(Debug)]
 pub struct Expr {
-    kind: Box<ExprKind>,
-    token: Token,
+    pub kind: Box<ExprKind>,
+    pub token: Token,
 }
 
 #[derive(Debug)]

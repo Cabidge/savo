@@ -1,4 +1,4 @@
-pub use parser::{ Parser, Expr };
+pub use parser::{ Parser, Expr, ExprKind };
 use crate::lexing::{ self, Token };
 
 mod parser;
