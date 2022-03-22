@@ -5,6 +5,7 @@ use std::fs;
 
 mod lexing;
 mod parsing;
+mod resolving;
 mod compiling;
 
 fn main() {
