@@ -25,5 +25,7 @@ fn main() {
         Err(_) => process::exit(1),
     };
 
-    println!("{}", ast_root);
+    for expr in ast_root.iter() {
+        println!("{}", expr);
+    }
 }

@@ -1,13 +1,6 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::fmt;
 use crate::lexing::{ Token, TokenKind::{ self, * } };
-
-#[derive(Debug)]
-pub struct Root {
-    funcs: HashMap<String, (Vec<String>, Vec<Expr>)>,
-    globals: HashMap<String, f64>,
-}
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -42,7 +35,6 @@ pub struct Error {
 
 #[derive(Debug)]
 pub enum ErrorKind {
-    ExpectLetInGlobal,
     ExpectIdentAfterLet,
     ExpectParenOrEqAfterLetIdent,
     DuplicateParam,
@@ -63,40 +55,20 @@ impl Parser {
         }
     }
 
-    pub fn parse(mut self) -> Result<Root, Vec<Error>> {
-        let mut funcs = HashMap::<String, (Vec<String>, Vec<Expr>)>::new();
-        let mut globals = HashMap::<String, f64>::new();
+    pub fn parse(mut self) -> Result<Vec<Expr>, Vec<Error>> {
+        let mut exprs = Vec::<Expr>::new();
         let mut errors = Vec::<Error>::new();
 
         while self.current().kind != TokenKind::EOF {
             while self.eat_current(&TokenKind::Semicolon) {};
 
-            let res = if self.current().kind == TokenKind::Let {
-                self.parse_let()
-            } else {
-                Err(Error {
-                    kind: ErrorKind::ExpectLetInGlobal,
-                    token: self.current().clone(),
-                })
-            };
-
-            match res {
-                Ok(expr) => {
-                    match *expr.kind {
-                        ExprKind::Var(ident, val) => {
-                            match *val.kind {
-                                ExprKind::Value(v) => { globals.insert(ident, v); },
-                                _ => todo!(),
-                            }
-                        },
-                        ExprKind::Func(ident, params, body) => { funcs.insert(ident, (params, body)); },
-                        _ => unimplemented!(),
-                    }
-                },
+            match self.parse_expr() {
+                Ok(expr) if errors.len() == 0 => exprs.push(expr),
                 Err(err) => {
                     errors.push(err);
                     self.stabilize();
                 },
+                _ => (),
             }
         }
 
@@ -104,16 +76,11 @@ impl Parser {
             return Err(errors);
         }
         
-        Ok(Root {
-            funcs,
-            globals,
-        })
+        Ok(exprs)
     }
 
     fn stabilize(&mut self) {
-        // TODO: refactor this monstrosity
         while !(self.eat_current(&TokenKind::Semicolon) ||
-                //self.eat_current(&TokenKind::RBrace) ||
                 self.current().kind == TokenKind::EOF)
         {
             self.advance();
@@ -374,40 +341,6 @@ impl Parser {
 
     fn peek(&self) -> &Token {
         self.get_token(self.index + 1)
-    }
-}
-
-impl fmt::Display for Root {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Globals:\n")?;
-        for (name, val) in self.globals.iter() {
-            write!(f, "  {} = {}\n", name, val)?;
-        }
-
-        write!(f, "\nFunctions:\n")?;
-        for (name, (params, body)) in self.funcs.iter() {
-            write!(f, "  {}(", name)?;
-            
-            {
-                let mut params = params.iter();
-                if let Some(param) = params.next() {
-                    write!(f, "{}", param)?;
-                    for param in params {
-                        write!(f, ", {}", param)?;
-                    }
-                }
-            }
-
-            write!(f, ")\n")?;
-
-            for expr in body.iter() {
-                write!(f, "    {}\n", expr)?;
-            }
-
-            write!(f, "\n")?;
-        }
-
-        Ok(())
     }
 }
 

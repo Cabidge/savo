@@ -1,14 +1,14 @@
-pub use parser::{ Parser, Root, Expr };
+pub use parser::{ Parser, Expr };
 use crate::lexing::{ self, Token };
 
 mod parser;
 
-pub fn parse(src: &str) -> Result<Root, ()> {
+pub fn parse(src: &str) -> Result<Vec<Expr>, ()> {
     let tokens = lexing::lex(src)?;
     parse_tokens(tokens)
 }
 
-pub fn parse_tokens(tokens: Vec<Token>) -> Result<Root, ()> {
+pub fn parse_tokens(tokens: Vec<Token>) -> Result<Vec<Expr>, ()> {
     let parser = Parser::new(tokens);
 
     match parser.parse() {
