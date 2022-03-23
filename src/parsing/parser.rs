@@ -313,7 +313,19 @@ impl Parser {
     }
 
     fn parse_negate(&mut self) -> Result<Expr, Error> {
-        todo!()
+        let negate_token = self.current().clone();
+        if negate_token.kind != TokenKind::Sub {
+            panic!("Cannot call parse_negate on a non-`-` token...");
+        }
+
+        self.advance();
+
+        let expr = self.parse_expr()?;
+
+        Ok(Expr {
+            kind: ExprKind::Negate(expr).into(),
+            token: negate_token,
+        })
     }
 
     fn get_token(&self, index: usize) -> &Token {
