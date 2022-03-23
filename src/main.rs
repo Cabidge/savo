@@ -29,4 +29,8 @@ fn main() {
     for expr in ast_root.iter() {
         println!("{}", expr);
     }
+
+    let program = resolving::resolve_exprs(&ast_root);
+
+    println!("{}", program);
 }
