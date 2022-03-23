@@ -211,7 +211,7 @@ impl Parser {
 
     fn parse_unary(&mut self) -> Result<Expr, Error> {
         match &self.current().kind {
-            TokenKind::Value(val) => self.parse_value(),
+            TokenKind::Value(_) => self.parse_value(),
             TokenKind::Let => self.parse_let(),
             TokenKind::RArrow => self.parse_return(),
             TokenKind::Ident(_) => self.parse_ident(),
