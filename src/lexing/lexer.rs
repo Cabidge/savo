@@ -59,6 +59,14 @@ impl Token {
             col: 0,
         }
     }
+
+    pub fn get_ident(&self) -> Option<String> {
+        if let TokenKind::Ident(ident) = self.kind {
+            Some(ident.clone())
+        } else {
+            None
+        }
+    }
 }
 
 impl Lexer {
