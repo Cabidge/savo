@@ -16,19 +16,23 @@ fn main() {
         Err(_) => process::exit(1),
     };
 
+    /*
     for tok in tokens.iter() {
         print!("{}", tok.kind);
     }
     println!("");
+    */
 
     let ast_root = match parsing::parse_tokens(tokens) {
         Ok(root) => root,
         Err(_) => process::exit(1),
     };
 
+    /*
     for expr in ast_root.iter() {
         println!("{}", expr);
     }
+    */
 
     let program = resolving::resolve_exprs(&ast_root);
 
