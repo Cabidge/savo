@@ -61,7 +61,7 @@ impl Token {
     }
 
     pub fn get_ident(&self) -> Option<String> {
-        if let TokenKind::Ident(ident) = self.kind {
+        if let TokenKind::Ident(ident) = &self.kind {
             Some(ident.clone())
         } else {
             None
