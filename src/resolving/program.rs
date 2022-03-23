@@ -52,13 +52,17 @@ impl Block {
         }
     }
 
+    fn format_var(id: u8, name: &str) -> String {
+        format!("{} #{}", name, id)
+    }
+
     pub(super) fn define(&mut self, name: String) {
         *self.vars.entry(name).or_insert(0) += 1;
     }
 
     pub(super) fn get_var_name(&self, name: &str) -> Option<String> {
         self.vars.get(name)
-            .map(|id| format!("{}${}", name, id))
+            .map(|&id| Self::format_var(id, name))
     }
 
     pub fn get_vars(&self) -> Vec<String> {
@@ -66,7 +70,7 @@ impl Block {
 
         for (name, &count) in self.vars.iter() {
             for id in 1..=count {
-                vars.push(format!("{}${}", name, id));
+                vars.push(Self::format_var(id, name));
             }
         }
 
