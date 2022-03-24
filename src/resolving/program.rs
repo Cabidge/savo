@@ -62,9 +62,16 @@ impl Block {
         *self.vars.entry(name).or_insert(0) += 1;
     }
 
-    pub(super) fn get_var_name(&self, name: &str) -> Option<String> {
+    pub(super) fn get_var_name(&self, name: &str, globals: &HashMap<String, f64>) -> Option<String> {
         self.vars.get(name)
             .map(|&id| Self::format_var(id, name))
+            .or_else(|| {
+                if globals.contains_key(name) {
+                    Some(name.to_string())
+                } else {
+                    None
+                }
+            })
     }
 
     pub fn get_vars(&self) -> Vec<String> {

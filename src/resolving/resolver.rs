@@ -32,7 +32,8 @@ fn resolve_func(
 
     for (i, param) in params.iter().enumerate() {
         block.define(param.clone());
-        block.stmts.push(Stmt::Set(block.get_var_name(param).unwrap(), IRExpr::Param(i)));
+        let param = block.get_var_name(param, &program.globals).unwrap();
+        block.stmts.push(Stmt::Set(param, IRExpr::Param(i)));
     }
 
     for expr in body.iter() {
@@ -49,12 +50,12 @@ fn resolve_stmt(block: &mut Block, program: &Program, expr: &Expr) {
         ExprKind::Var(name, initial) => {
             let initial = res_expr(initial);
             block.define(name.clone());
-            let name = block.get_var_name(name).unwrap();
+            let name = block.get_var_name(name, &program.globals).unwrap();
             Stmt::Set(name, initial)
         },
         ExprKind::Set(name, value) => {
             let value = res_expr(value);
-            let name = block.get_var_name(name).unwrap();
+            let name = block.get_var_name(name, &program.globals).unwrap();
             Stmt::Set(name, value)
         },
         ExprKind::Return(value) => Stmt::Return(res_expr(value)),
@@ -68,7 +69,10 @@ fn resolve_stmt(block: &mut Block, program: &Program, expr: &Expr) {
 fn resolve_expr(block: &mut Block, program: &Program, expr: &Expr) -> IRExpr {
     match &*expr.kind {
         ExprKind::Value(n) => IRExpr::Val(*n),
-        ExprKind::Get(name) => IRExpr::Get(name.clone()),
+        ExprKind::Get(name) => {
+            let name = block.get_var_name(name, &program.globals).unwrap();
+            IRExpr::Get(name)
+        },
         ExprKind::BinOp(lhs, rhs) => {
             let op = Op::try_from(&expr.token).unwrap();
             let lhs = resolve_expr(block, program, lhs);
