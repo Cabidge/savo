@@ -1,6 +1,7 @@
 use inkwell::{
     context::Context,
     module::Module,
+    builder::Builder,
     values::{FloatValue, PointerValue},
     AddressSpace,
 };
@@ -69,21 +70,23 @@ impl<'ctx> Compiler<'ctx> {
         }
 
         // Compile statements
-
+        for stmt in block.stmts.iter() {
+            self.build_stmt(stmt, &builder, &locals);
+        }
 
         // Default return value
         let f64_zero = f64_type.const_zero();
         builder.build_return(Some(&f64_zero));
     }
 
-    fn compile_stmt(&self, stmt: &Stmt, locals: &LocalPtrs<'ctx>) {
+    fn build_stmt(&self, stmt: &Stmt, builder: &Builder<'ctx>, locals: &LocalPtrs<'ctx>) {
         match stmt {
-            Stmt::Expr(expr) => { self.compile_expr(expr, locals); }
+            Stmt::Expr(expr) => { self.compile_expr(expr, builder, locals); }
             _ => todo!(),
         }
     }
 
-    fn compile_expr(&self, expr: &Expr, locals: &LocalPtrs<'ctx>) ->  FloatValue<'ctx> {
+    fn build_expr(&self, expr: &Expr, builder: &Builder<'ctx>, locals: &LocalPtrs<'ctx>) ->  FloatValue<'ctx> {
         let f64_type = self.ctx.f64_type();
         match expr {
             Expr::Val(v) => f64_type.const_float(*v),
