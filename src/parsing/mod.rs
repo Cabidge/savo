@@ -1,7 +1,8 @@
 pub use parser::{ Parser, Expr, ExprKind };
-use crate::lexing::{ self, Token };
 
 mod parser;
+
+use crate::lexing::{ self, Token };
 
 pub fn parse(src: &str) -> Result<Vec<Expr>, ()> {
     let tokens = lexing::lex(src)?;

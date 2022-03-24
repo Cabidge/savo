@@ -1,10 +1,11 @@
 pub use lexer::{ Token, TokenKind };
-use lexer::ErrorKind::*;
 
 mod lexer;
 mod char_stream;
 
-pub fn lex(src: &str) -> Result<Vec<lexer::Token>, ()> {
+use lexer::ErrorKind::*;
+
+pub fn lex(src: &str) -> Result<Vec<Token>, ()> {
     let lexer = lexer::Lexer::new(src);
     let mut has_error = false;
     let mut tokens = Vec::new();
