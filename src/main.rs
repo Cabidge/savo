@@ -11,6 +11,7 @@ mod compiling;
 fn main() {
     let source = fs::read_to_string("src/main.savo").unwrap();
 
+    /*
     let tokens = match lexing::lex(&source) {
         Ok(tokens) => tokens,
         Err(_) => process::exit(1),
@@ -37,4 +38,7 @@ fn main() {
     let program = resolving::resolve_exprs(&ast_root);
 
     println!("{}", program);
+    */
+
+    compiling::compile(&source, "src/savo.o");
 }
