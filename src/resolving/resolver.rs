@@ -52,6 +52,15 @@ fn resolve_func(
         resolve_stmt(&mut block, program, expr);
     }
 
+    // I'll need to figure out a better way to do this some other time...
+    if block.stmts.len() == 0 {
+        block.stmts.push(Stmt::Return(IRExpr::Val(0.0)));
+    } else if let Stmt::Return(_) = block.stmts[block.stmts.len() - 1] {
+
+    } else {
+        block.stmts.push(Stmt::Return(IRExpr::Val(0.0)));
+    }
+
     block
 }
 

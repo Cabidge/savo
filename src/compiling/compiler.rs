@@ -137,10 +137,6 @@ impl<'ctx> Compiler<'ctx> {
         for stmt in block.stmts.iter() {
             self.build_stmt(stmt, &builder, &locals, func);
         }
-
-        // Default return value
-        let f64_zero = f64_type.const_zero();
-        builder.build_return(Some(&f64_zero));
     }
 
     fn get_var_ptr(&self, name: &str, locals: Option<&LocalPtrs<'ctx>>) -> Option<PointerValue<'ctx>> {
