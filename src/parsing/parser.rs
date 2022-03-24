@@ -386,7 +386,6 @@ impl fmt::Display for ExprKind {
             ExprKind::Negate(expr) => write!(f, "(neg {})", expr),
             ExprKind::BinOp(_, _) |
             ExprKind::Call(_) => unimplemented!(),
-            _ => todo!(),
         }
     }
 }
