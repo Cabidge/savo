@@ -54,6 +54,9 @@ impl<'ctx> Compiler<'ctx> {
         for (name, block) in program.funcs.iter() {
             self.compile_func(name, block);
         }
+
+        // Define main
+        self.build_main();
     }
 
     pub fn export(&self, out: &str) {
@@ -83,6 +86,33 @@ impl<'ctx> Compiler<'ctx> {
         target_machine
             .write_to_file(&self.module, FileType::Object, out.as_ref())
             .map_err(|e| format!("{:?}", e)).unwrap();
+    }
+
+    fn build_main(&self) {
+        let f64_type = self.ctx.f64_type();
+        let i32_type = self.ctx.i32_type();
+        let main_fn_type = i32_type.fn_type(&[], false);
+        let main_fn = self.module.add_function("main", main_fn_type, None);
+
+        // Add entry
+        let fn_block = self.ctx.append_basic_block(main_fn, "entry");
+
+        // Move builder
+        let builder = self.ctx.create_builder();
+        builder.position_at_end(fn_block);
+
+        // User-defined main fn
+        let user_main_fn = self.module.get_function("$main").unwrap();
+
+        // Build main
+        let value = builder.build_call(user_main_fn, &[], "call main")
+            .try_as_basic_value()
+            .left()
+            .unwrap()
+            .into_float_value();
+
+        // Return
+        builder.build_return(Some(&i32_type.const_zero()));
     }
 
     fn compile_func(&self, name: &str, block: &Block) {
