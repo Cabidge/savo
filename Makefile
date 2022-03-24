@@ -1,4 +1,6 @@
 run:
 	@cargo run
 	@clang src/savo.o
-	./a.out
+	@rm src/savo.o
+	@./a.out
+	@rm a.out
