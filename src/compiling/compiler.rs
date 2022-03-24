@@ -105,7 +105,7 @@ impl<'ctx> Compiler<'ctx> {
         let user_main_fn = self.module.get_function("$main").unwrap();
 
         // Build main
-        let value = builder.build_call(user_main_fn, &[], "call main")
+        builder.build_call(user_main_fn, &[], "call main")
             .try_as_basic_value()
             .left()
             .unwrap()
