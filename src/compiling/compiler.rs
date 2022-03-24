@@ -2,7 +2,7 @@ use inkwell::{
     context::Context,
     module::Module,
     builder::Builder,
-    values::{FloatValue, PointerValue, FunctionValue},
+    values::{BasicMetadataValueEnum, FloatValue, PointerValue, FunctionValue},
     AddressSpace,
 };
 
@@ -121,7 +121,20 @@ impl<'ctx> Compiler<'ctx> {
                     _ => todo!(),
                 }
             },
-            _ => f64_type.const_zero(),
+            Expr::Call(name, args) => {
+                let args = args
+                    .iter()
+                    .map(|expr| self.build_expr(expr, builder, locals, func).into())
+                    .collect::<Vec<BasicMetadataValueEnum>>();
+                
+                let func = self.module.get_function(name).unwrap();
+
+                builder.build_call(func, &args[..], &format!("call {}", name))
+                    .try_as_basic_value()
+                    .left()
+                    .unwrap()
+                    .into_float_value()
+            },
         }
     }
 }
