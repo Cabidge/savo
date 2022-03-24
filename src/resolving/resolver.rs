@@ -14,10 +14,22 @@ pub fn resolve_exprs(exprs: &[Expr]) -> Program {
             },
             ExprKind::Func(name, params, body) => {
                 let block = resolve_func(&program, params, body);
-                program.funcs.insert(name.clone(), block);
+
+                let name = {
+                    if name == "main" {
+                        "$main".to_string()
+                    } else {
+                        name.to_string()
+                    }
+                };
+                program.funcs.insert(name, block);
             },
             _ => unimplemented!(),
         }
+    }
+
+    if !program.funcs.contains_key("$main") {
+        panic!("No main function found");
     }
 
     program
@@ -89,7 +101,14 @@ fn resolve_expr(block: &mut Block, program: &Program, expr: &Expr) -> IRExpr {
                 .map(|arg| resolve_expr(block, program, arg))
                 .collect();
 
-            let fn_name = expr.token.get_ident().unwrap();
+            let fn_name = {
+                let name = expr.token.get_ident().unwrap();
+                if name.as_str() == "main" {
+                    "$main".to_string()
+                } else {
+                    name
+                }
+            };
             IRExpr::Call(fn_name, args)
         },
         _ => { 

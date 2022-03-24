@@ -4,8 +4,14 @@ let main() {
     let x = 12;
 
     x <- f(x, x);
+
+    -> x + glob;
 }
 
 let f(x, y) {
     -> x + y;
+}
+
+let g() {
+    -> main();
 }
