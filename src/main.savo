@@ -4,8 +4,6 @@ let main() {
     let x = 12;
 
     x <- f(x, x);
-
-    -> x + glob; # prints to stdout
 }
 
 let f(x, y) {
