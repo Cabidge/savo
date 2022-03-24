@@ -8,7 +8,7 @@ use inkwell::{
 
 use std::collections::HashMap;
 
-use crate::resolving::{ Program, Block, Stmt, Expr };
+use crate::resolving::{ Program, Block, Stmt, Expr, Op };
 
 pub struct Compiler<'ctx> {
     pub ctx: &'ctx Context,
@@ -108,7 +108,20 @@ impl<'ctx> Compiler<'ctx> {
         let f64_type = self.ctx.f64_type();
         match expr {
             Expr::Val(v) => f64_type.const_float(*v),
-            _ => todo!(),
+            Expr::Param(n) => f64_type.const_zero(), // TODO
+            Expr::Get(name) => {
+                let ptr = self.get_var_ptr(name, Some(locals)).unwrap();
+                builder.build_load(ptr, "").into_float_value()
+            },
+            Expr::BinOp(op, lhs, rhs) => {
+                let lhs = self.build_expr(lhs, builder, locals);
+                let rhs = self.build_expr(rhs, builder, locals);
+                match op {
+                    Op::Add => builder.build_float_add(lhs, rhs, "add"),
+                    _ => todo!(),
+                }
+            },
+            _ => f64_type.const_zero(),
         }
     }
 }
