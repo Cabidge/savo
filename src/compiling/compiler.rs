@@ -50,6 +50,9 @@ impl<'ctx> Compiler<'ctx> {
             self.module.add_function(name, fn_type, None);
         }
 
+        // Define intrinsics
+        self.build_intrinsics();
+
         // Define functions
         for (name, block) in program.funcs.iter() {
             self.compile_func(name, block);
@@ -113,6 +116,41 @@ impl<'ctx> Compiler<'ctx> {
 
         // Return
         builder.build_return(Some(&i32_type.const_zero()));
+    }
+
+    fn build_intrinsics(&self) {
+        let f64_type = self.ctx.f64_type();
+        let str_type = self.ctx.i8_type().ptr_type(AddressSpace::Generic);
+        let void_type = self.ctx.void_type();
+
+        // -- printf
+        let printf_fn_type = void_type.fn_type(&[str_type.into()], true);
+        let printf_fn = self.module.add_function("printf", printf_fn_type, None);
+
+        // -- print
+        {
+            let print_fn_type = f64_type.fn_type(&[f64_type.into()], false);
+            let print_fn = self.module.add_function("print", print_fn_type, None);
+
+            let builder = self.ctx.create_builder();
+
+            // Add entry
+            let fn_block = self.ctx.append_basic_block(print_fn, "entry");
+
+            // Move builder
+            builder.position_at_end(fn_block);
+
+            // Create format string
+            let fmt_string = builder.build_global_string_ptr("%f\n", ".floatfmt")
+                .as_pointer_value();
+
+            // Body
+            let param = print_fn.get_nth_param(0).unwrap();
+            builder.build_call(printf_fn, &[fmt_string.into(), param.into()], "");
+
+            // Return
+            builder.build_return(Some(&f64_type.const_zero()));
+        }
     }
 
     fn compile_func(&self, name: &str, block: &Block) {

@@ -5,6 +5,8 @@ let main() {
 
     x <- f(x, x);
 
+    print(12);
+
     -> x + glob;
 }
 
