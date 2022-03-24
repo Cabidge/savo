@@ -79,7 +79,13 @@ fn resolve_stmt(block: &mut Block, program: &Program, expr: &Expr) {
             let name = block.get_var_name(name, &program.globals).unwrap();
             Stmt::Set(name, value)
         },
-        ExprKind::Return(value) => Stmt::Return(res_expr(value)),
+        ExprKind::Return(value) => {
+            let value = res_expr(value);
+            if let Some(Stmt::Return(_)) = &block.stmts[..].last() {
+                panic!("Unreachable return"); // TODO: Better error messages
+            }
+            Stmt::Return(value)
+        },
         ExprKind::Func(_, _, _) => todo!(),
         _ => Stmt::Expr(res_expr(expr)),
     };
