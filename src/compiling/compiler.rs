@@ -2,7 +2,7 @@ use inkwell::{
     context::Context,
     module::Module,
     builder::Builder,
-    values::{FloatValue, PointerValue},
+    values::{FloatValue, PointerValue, FunctionValue},
     AddressSpace,
 };
 
@@ -71,7 +71,7 @@ impl<'ctx> Compiler<'ctx> {
 
         // Compile statements
         for stmt in block.stmts.iter() {
-            self.build_stmt(stmt, &builder, &locals);
+            self.build_stmt(stmt, &builder, &locals, func);
         }
 
         // Default return value
@@ -89,33 +89,33 @@ impl<'ctx> Compiler<'ctx> {
         })
     }
 
-    fn build_stmt(&self, stmt: &Stmt, builder: &Builder<'ctx>, locals: &LocalPtrs<'ctx>) {
+    fn build_stmt(&self, stmt: &Stmt, builder: &Builder<'ctx>, locals: &LocalPtrs<'ctx>, func: FunctionValue<'ctx>) {
         match stmt {
             Stmt::Set(name, expr) => {
                 let ptr = self.get_var_ptr(name, Some(locals)).unwrap();
-                let value = self.build_expr(expr, builder, locals);
+                let value = self.build_expr(expr, builder, locals, func);
                 builder.build_store(ptr, value);
             },
             Stmt::Return(expr) => {
-                let value = self.build_expr(expr, builder, locals);
+                let value = self.build_expr(expr, builder, locals, func);
                 builder.build_return(Some(&value));
             },
-            Stmt::Expr(expr) => { self.build_expr(expr, builder, locals); },
+            Stmt::Expr(expr) => { self.build_expr(expr, builder, locals, func); },
         }
     }
 
-    fn build_expr(&self, expr: &Expr, builder: &Builder<'ctx>, locals: &LocalPtrs<'ctx>) ->  FloatValue<'ctx> {
+    fn build_expr(&self, expr: &Expr, builder: &Builder<'ctx>, locals: &LocalPtrs<'ctx>, func: FunctionValue<'ctx>) ->  FloatValue<'ctx> {
         let f64_type = self.ctx.f64_type();
         match expr {
             Expr::Val(v) => f64_type.const_float(*v),
-            Expr::Param(n) => f64_type.const_zero(), // TODO
+            Expr::Param(n) => func.get_nth_param(*n as u32).unwrap().into_float_value(),
             Expr::Get(name) => {
                 let ptr = self.get_var_ptr(name, Some(locals)).unwrap();
                 builder.build_load(ptr, "").into_float_value()
             },
             Expr::BinOp(op, lhs, rhs) => {
-                let lhs = self.build_expr(lhs, builder, locals);
-                let rhs = self.build_expr(rhs, builder, locals);
+                let lhs = self.build_expr(lhs, builder, locals, func);
+                let rhs = self.build_expr(rhs, builder, locals, func);
                 match op {
                     Op::Add => builder.build_float_add(lhs, rhs, "add"),
                     _ => todo!(),
