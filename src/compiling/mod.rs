@@ -24,5 +24,5 @@ pub fn compile_program(program: &Program, out: &str) {
 
     println!("{}", compiler.module.print_to_string().to_string());
 
-    compiler.export(out)
+    //compiler.export(out)
 }
