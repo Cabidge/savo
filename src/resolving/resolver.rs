@@ -28,7 +28,7 @@ fn resolve_func(
     params: &[String],
     body: &[Expr]
 ) -> Block {
-    let mut block = Block::new();
+    let mut block = Block::new(params.len());
 
     for (i, param) in params.iter().enumerate() {
         block.define(param.clone());

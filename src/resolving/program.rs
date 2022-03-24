@@ -40,13 +40,15 @@ impl fmt::Display for Program {
 }
 
 pub struct Block {
+    pub param_count: usize,
     vars: HashMap<String, u8>,
     pub stmts: Vec<Stmt>,
 }
 
 impl Block {
-    pub fn new() -> Self {
+    pub fn new(param_count: usize) -> Self {
         Block {
+            param_count,
             vars: HashMap::new(),
             stmts: Vec::new(),
         }
