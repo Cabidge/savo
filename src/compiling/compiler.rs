@@ -79,10 +79,28 @@ impl<'ctx> Compiler<'ctx> {
         builder.build_return(Some(&f64_zero));
     }
 
+    fn get_var_ptr(&self, name: &str, locals: Option<&LocalPtrs<'ctx>>) -> Option<PointerValue<'ctx>> {
+        locals.and_then(|locals| {
+            locals.get(name)
+                  .map(|&local| local)
+        }).or_else(|| {
+            self.module.get_global(name)
+                .map(|global| global.as_pointer_value())
+        })
+    }
+
     fn build_stmt(&self, stmt: &Stmt, builder: &Builder<'ctx>, locals: &LocalPtrs<'ctx>) {
         match stmt {
-            Stmt::Expr(expr) => { self.compile_expr(expr, builder, locals); }
-            _ => todo!(),
+            Stmt::Set(name, expr) => {
+                let ptr = self.get_var_ptr(name, Some(locals)).unwrap();
+                let value = self.build_expr(expr, builder, locals);
+                builder.build_store(ptr, value);
+            },
+            Stmt::Return(expr) => {
+                let value = self.build_expr(expr, builder, locals);
+                builder.build_return(Some(&value));
+            },
+            Stmt::Expr(expr) => { self.build_expr(expr, builder, locals); },
         }
     }
 
