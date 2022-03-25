@@ -238,7 +238,10 @@ impl Lexer {
                 return TokenKind::Error(ErrorKind::UnmatchedDoubleQuote);
             }
 
-            string.push(self.stream.take_current());
+            match self.anal_char() {
+                Ok(ch) => string.push(ch),
+                Err(err) => return TokenKind::Error(err),
+            }
         }
 
         TokenKind::Str(string)
