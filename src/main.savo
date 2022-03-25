@@ -1,7 +1,10 @@
 let main() {
-    if 2 <> 3 {
-        >> 1;
-    } else {
-        >> 0;
+    loop(1, 100);
+}
+
+let loop(min, max) {
+    if min < max {
+        >> min;
+        loop(min + 1, max);
     };
 }
