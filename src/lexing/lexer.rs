@@ -18,6 +18,9 @@ pub enum TokenKind {
     Let,
     Ident(String),
 
+    If,
+    Else,
+
     EQ, // =
     LT, // <
     GT, // >
@@ -32,6 +35,7 @@ pub enum TokenKind {
 
     LArrow, // <-
     RArrow, // ->
+    RFatArrow, // =>
 
     Dump, // >>
     Char(char),
@@ -113,7 +117,11 @@ impl Lexer {
         }
 
         if self.stream.eat_current('=') {
-            return TokenKind::EQ; // =
+            return if self.stream.eat_current('>') {
+                TokenKind::RFatArrow // =>
+            } else {
+                TokenKind::EQ // =
+            }
         }
 
         if self.stream.eat_current('<') {
@@ -277,6 +285,8 @@ impl Lexer {
 
         match ident.as_str() {
             "let" => TokenKind::Let,
+            "if" => TokenKind::If,
+            "else" => TokenKind::Else,
             "printf" => TokenKind::Error(ErrorKind::ReservedKeyword("printf")),
             _ => TokenKind::Ident(ident),
         }
