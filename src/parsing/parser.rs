@@ -209,15 +209,22 @@ impl Parser {
             panic!("Cannot call parse_dump on a non-`>>` token...");
         }
 
-        let stmt = match &self.advance().kind {
-            TokenKind::Char(ch) => Stmt {
-                kind: StmtKind::DumpChar(*ch),
-                token: dump_token,
-            },
-            TokenKind::Str(s) => Stmt {
-                kind: StmtKind::DumpStr(s.clone()),
-                token: dump_token,
-            },
+        let token = self.advance().clone();
+        let stmt = match token.kind {
+            TokenKind::Char(ch) => {
+                self.advance();
+                Stmt {
+                    kind: StmtKind::DumpChar(ch),
+                    token: dump_token,
+                }
+            }
+            TokenKind::Str(s) => {
+                self.advance();
+                Stmt {
+                    kind: StmtKind::DumpStr(s.clone()),
+                    token: dump_token,
+                }
+            }
             _ => {
                 let expr = self.parse_expr()?;
                 Stmt {
