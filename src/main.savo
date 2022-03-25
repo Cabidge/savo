@@ -3,4 +3,5 @@ let main() {
     let inf = 1 / 0;
     let nan =  inf - inf;
     >> nan = nan;
+    -> 123;
 }

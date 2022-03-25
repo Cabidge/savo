@@ -222,6 +222,7 @@ impl Parser {
     fn parse_stmt(&mut self) -> Result<Stmt, Error> {
         match &self.current().kind {
             TokenKind::Let => self.parse_let(),
+            TokenKind::RArrow => self.parse_break(),
             TokenKind::RFatArrow => self.parse_return(),
             TokenKind::Dump => self.parse_dump(),
             TokenKind::Ident(_) => self.parse_ident_stmt(),
@@ -424,6 +425,22 @@ impl Parser {
         Ok(Expr {
             kind: Box::new(ExprKind::Call(args)),
             token,
+        })
+    }
+
+    fn parse_break(&mut self) -> Result<Stmt, Error> {
+        let rarrow_token = self.current().clone();
+        if rarrow_token.kind != TokenKind::RArrow {
+            panic!("Cannot call parse_break on a non-`->` token...");
+        }
+
+        self.advance();
+
+        let expr = self.parse_expr()?;
+
+        Ok(Stmt {
+            kind: StmtKind::Break(expr).into(),
+            token: rarrow_token,
         })
     }
 
