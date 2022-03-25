@@ -1,4 +1,4 @@
-pub use resolver::resolve_exprs;
+pub use resolver::resolve_stmts;
 pub use program::*;
 
 mod resolver;

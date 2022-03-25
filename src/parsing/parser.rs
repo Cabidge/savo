@@ -9,6 +9,21 @@ pub struct Parser {
 }
 
 #[derive(Debug)]
+pub struct Stmt {
+    pub kind: StmtKind,
+    pub token: Token,
+}
+
+#[derive(Debug)]
+pub enum StmtKind {
+    Var(String, Expr),
+    Func(String, Vec<String>, Vec<Stmt>),
+    Set(String, Expr),
+    Return(Expr),
+    Expr(Expr),
+}
+
+#[derive(Debug)]
 pub struct Expr {
     pub kind: Box<ExprKind>,
     pub token: Token,
@@ -17,11 +32,7 @@ pub struct Expr {
 #[derive(Debug)]
 pub enum ExprKind {
     Value(f64),
-    Var(String, Expr),
-    Func(String, Vec<String>, Vec<Expr>),
-    Set(String, Expr),
     Get(String),
-    Return(Expr),
     BinOp(Expr, Expr),
     Negate(Expr),
     Call(Vec<Expr>),
@@ -55,15 +66,15 @@ impl Parser {
         }
     }
 
-    pub fn parse(mut self) -> Result<Vec<Expr>, Vec<Error>> {
-        let mut exprs = Vec::<Expr>::new();
+    pub fn parse(mut self) -> Result<Vec<Stmt>, Vec<Error>> {
+        let mut stmts = Vec::new();
         let mut errors = Vec::<Error>::new();
 
         while self.current().kind != TokenKind::EOF {
             while self.eat_current(&TokenKind::Semicolon) {};
 
-            match self.parse_expr() {
-                Ok(expr) if errors.len() == 0 => exprs.push(expr),
+            match self.parse_stmt() {
+                Ok(stmt) if errors.len() == 0 => stmts.push(stmt),
                 Err(err) => {
                     errors.push(err);
                     self.stabilize();
@@ -75,8 +86,8 @@ impl Parser {
         if errors.len() > 0 {
             return Err(errors);
         }
-        
-        Ok(exprs)
+
+        Ok(stmts)
     }
 
     fn stabilize(&mut self) {
@@ -87,7 +98,7 @@ impl Parser {
         }
     }
 
-    fn parse_let(&mut self) -> Result<Expr, Error> {
+    fn parse_let(&mut self) -> Result<Stmt, Error> {
         let let_token = self.current().clone();
         if let_token.kind != TokenKind::Let {
             panic!("Cannot call parse_let on a non-`let` token...");
@@ -105,8 +116,8 @@ impl Parser {
         if self.eat_current(&TokenKind::EQ) {
             let expr = self.parse_expr()?;
 
-            return Ok(Expr {
-                kind: Box::new(ExprKind::Var(ident, expr)),
+            return Ok(Stmt {
+                kind: StmtKind::Var(ident, expr),
                 token: let_token,
             })
         }
@@ -137,8 +148,8 @@ impl Parser {
                 ErrorKind::ExpectBraceAfterParams.raise_from(self.current())?;
             };
 
-            return Ok(Expr {
-                kind: Box::new(ExprKind::Func(ident, params, block)),
+            return Ok(Stmt {
+                kind: StmtKind::Func(ident, params, block),
                 token: let_token,
             });
         }
@@ -146,12 +157,12 @@ impl Parser {
         ErrorKind::ExpectParenOrEqAfterLetIdent.raise_from(self.current())?;
     }
 
-    fn parse_block(&mut self) -> Result<Vec<Expr>, Error> {
+    fn parse_block(&mut self) -> Result<Vec<Stmt>, Error> {
         if !self.eat_current(&TokenKind::LBrace) {
             panic!("Cannot call parse_block on a non-`{{` token...");
         }
 
-        let mut exprs = Vec::<Expr>::new();
+        let mut stmts = Vec::new();
         let mut error = None;
 
         while !self.eat_current(&TokenKind::RBrace) {
@@ -160,9 +171,9 @@ impl Parser {
             }
 
             if error.is_none() {
-                match self.parse_expr() {
-                    Ok(expr) => {
-                        exprs.push(expr);
+                match self.parse_stmt() {
+                    Ok(stmt) => {
+                        stmts.push(stmt);
                         if !self.eat_current(&TokenKind::Semicolon) {
                             ErrorKind::ExpectSemicolonAfterStmt.raise_from(self.current())?;
                         }
@@ -175,7 +186,16 @@ impl Parser {
         if let Some(err) = error {
             Err(err)
         } else {
-            Ok(exprs)
+            Ok(stmts)
+        }
+    }
+
+    fn parse_stmt(&mut self) -> Result<Stmt, Error> {
+        match &self.current().kind {
+            TokenKind::Let => self.parse_let(),
+            TokenKind::RArrow => self.parse_return(),
+            TokenKind::Ident(_) => self.parse_ident_stmt(),
+            _ => panic!("{:?}", self.current()), // TODO: Error handling
         }
     }
 
@@ -212,11 +232,9 @@ impl Parser {
     fn parse_unary(&mut self) -> Result<Expr, Error> {
         match &self.current().kind {
             TokenKind::Value(_) => self.parse_value(),
-            TokenKind::Let => self.parse_let(),
-            TokenKind::RArrow => self.parse_return(),
-            TokenKind::Ident(_) => self.parse_ident(),
+            TokenKind::Ident(_) => self.parse_ident_expr(),
             TokenKind::Sub => self.parse_negate(),
-            _ => panic!("{:?}", self.current()),
+            _ => panic!("{:?}", self.current()), // TODO: Error handling
         }
     }
 
@@ -236,18 +254,37 @@ impl Parser {
         })
     }
 
-    fn parse_ident(&mut self) -> Result<Expr, Error> {
+    fn parse_ident_stmt(&mut self) -> Result<Stmt, Error> {
         let ident_token = self.current().clone();
         let ident = if let TokenKind::Ident(id) = &ident_token.kind {
             id.clone()
         } else {
-            panic!("Cannot call parse_ident on a non-ident token...");
+            panic!("Cannot call parse_ident_stmt on a non-ident token...");
+        };
+
+        match self.peek().kind {
+            TokenKind::LArrow => {
+                self.advance();
+                self.parse_set(ident)
+            },
+            _ => Ok(Stmt {
+                kind: StmtKind::Expr(self.parse_ident_expr()?),
+                token: ident_token,
+            })
+        }
+    }
+
+    fn parse_ident_expr(&mut self) -> Result<Expr, Error> {
+        let ident_token = self.current().clone();
+        let ident = if let TokenKind::Ident(id) = &ident_token.kind {
+            id.clone()
+        } else {
+            panic!("Cannot call parse_ident_expr on a non-ident token...");
         };
 
         self.advance();
 
         match self.current().kind {
-            TokenKind::LArrow => self.parse_set(ident),
             TokenKind::LParen => self.parse_call(ident_token),
             _ => Ok(Expr {
                 kind: ExprKind::Get(ident).into(),
@@ -256,7 +293,7 @@ impl Parser {
         }
     }
 
-    fn parse_set(&mut self, ident: String) -> Result<Expr, Error> {
+    fn parse_set(&mut self, ident: String) -> Result<Stmt, Error> {
         let larrow_token = self.current().clone();
         if larrow_token.kind != TokenKind::LArrow {
             panic!("Cannot call parse_set on a non-`<-` token...");
@@ -266,8 +303,8 @@ impl Parser {
 
         let expr = self.parse_expr()?;
 
-        Ok(Expr {
-            kind: Box::new(ExprKind::Set(ident, expr)),
+        Ok(Stmt {
+            kind: StmtKind::Set(ident, expr),
             token: larrow_token,
         })
     }
@@ -296,7 +333,7 @@ impl Parser {
         })
     }
 
-    fn parse_return(&mut self) -> Result<Expr, Error> {
+    fn parse_return(&mut self) -> Result<Stmt, Error> {
         let rarrow_token = self.current().clone();
         if rarrow_token.kind != TokenKind::RArrow {
             panic!("Cannot call parse_set on a non-`->` token...");
@@ -306,8 +343,8 @@ impl Parser {
 
         let expr = self.parse_expr()?;
 
-        Ok(Expr {
-            kind: ExprKind::Return(expr).into(),
+        Ok(Stmt {
+            kind: StmtKind::Return(expr).into(),
             token: rarrow_token,
         })
     }
@@ -378,11 +415,7 @@ impl fmt::Display for ExprKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ExprKind::Value(v) => v.fmt(f),
-            ExprKind::Var(name, expr) => write!(f, "(let {} {})", name, expr),
-            ExprKind::Func(name, _, _) => write!(f, "(let {}(...) ...)", name),
-            ExprKind::Set(name, expr) => write!(f, "({} <- {})", name, expr),
             ExprKind::Get(name) => name.fmt(f),
-            ExprKind::Return(expr) => write!(f, "(-> {})", expr),
             ExprKind::Negate(expr) => write!(f, "(neg {})", expr),
             ExprKind::BinOp(_, _) |
             ExprKind::Call(_) => unimplemented!(),

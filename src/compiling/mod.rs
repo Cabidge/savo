@@ -7,11 +7,11 @@ use inkwell::{
 use compiler::Compiler;
 
 use crate::parsing::parse;
-use crate::resolving::{ resolve_exprs, Program };
+use crate::resolving::{ resolve_stmts, Program };
 
 pub fn compile(src: &str, out:& str) {
-    let exprs = parse(src).unwrap();
-    let program = resolve_exprs(&exprs);
+    let stmts = parse(src).unwrap();
+    let program = resolve_stmts(&stmts);
 
     compile_program(&program, out)
 }

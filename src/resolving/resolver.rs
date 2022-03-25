@@ -1,18 +1,18 @@
 use std::collections::HashMap;
 
-use super::program::{ Program, Block, Op, Expr as IRExpr, Stmt };
+use super::program::{ Program, Block, Op, Expr as IRExpr, Stmt as IRStmt };
 use crate::parsing::*;
 
-pub fn resolve_exprs(exprs: &[Expr]) -> Program {
+pub fn resolve_stmts(stmts: &[Stmt]) -> Program {
     let mut program = Program::new();
 
-    for expr in exprs.iter() {
-        match &*expr.kind {
-            ExprKind::Var(name, expr) => {
+    for stmt in stmts.iter() {
+        match &stmt.kind {
+            StmtKind::Var(name, expr) => {
                 let value = calculate_literal(&program.globals, &expr);
                 program.globals.insert(name.clone(), value);
             },
-            ExprKind::Func(name, params, body) => {
+            StmtKind::Func(name, params, body) => {
                 let block = resolve_func(&program, params, body);
 
                 let name = {
@@ -38,56 +38,56 @@ pub fn resolve_exprs(exprs: &[Expr]) -> Program {
 fn resolve_func(
     program: &Program,
     params: &[String],
-    body: &[Expr]
+    body: &[Stmt]
 ) -> Block {
     let mut block = Block::new(params.len());
 
     for (i, param) in params.iter().enumerate() {
         block.define(param.clone());
         let param = block.get_var_name(param, &program.globals).unwrap();
-        block.stmts.push(Stmt::Set(param, IRExpr::Param(i)));
+        block.stmts.push(IRStmt::Set(param, IRExpr::Param(i)));
     }
 
-    for expr in body.iter() {
-        resolve_stmt(&mut block, program, expr);
+    for stmt in body.iter() {
+        resolve_stmt(&mut block, program, stmt);
     }
 
     // I'll need to figure out a better way to do this some other time...
     if block.stmts.len() == 0 {
-        block.stmts.push(Stmt::Return(IRExpr::Val(0.0)));
-    } else if let Stmt::Return(_) = block.stmts[block.stmts.len() - 1] {
+        block.stmts.push(IRStmt::Return(IRExpr::Val(0.0)));
+    } else if let IRStmt::Return(_) = block.stmts[block.stmts.len() - 1] {
 
     } else {
-        block.stmts.push(Stmt::Return(IRExpr::Val(0.0)));
+        block.stmts.push(IRStmt::Return(IRExpr::Val(0.0)));
     }
 
     block
 }
 
-fn resolve_stmt(block: &mut Block, program: &Program, expr: &Expr) {
+fn resolve_stmt(block: &mut Block, program: &Program, stmt: &Stmt) {
     let mut res_expr = |expr| resolve_expr(block, program, expr);
 
-    let stmt = match &*expr.kind {
-        ExprKind::Var(name, initial) => {
+    let stmt = match &stmt.kind {
+        StmtKind::Var(name, initial) => {
             let initial = res_expr(initial);
             block.define(name.clone());
             let name = block.get_var_name(name, &program.globals).unwrap();
-            Stmt::Set(name, initial)
+            IRStmt::Set(name, initial)
         },
-        ExprKind::Set(name, value) => {
+        StmtKind::Set(name, value) => {
             let value = res_expr(value);
             let name = block.get_var_name(name, &program.globals).unwrap();
-            Stmt::Set(name, value)
+            IRStmt::Set(name, value)
         },
-        ExprKind::Return(value) => {
+        StmtKind::Return(value) => {
             let value = res_expr(value);
-            if let Some(Stmt::Return(_)) = &block.stmts[..].last() {
+            if let Some(IRStmt::Return(_)) = &block.stmts[..].last() {
                 panic!("Unreachable return"); // TODO: Better error messages
             }
-            Stmt::Return(value)
+            IRStmt::Return(value)
         },
-        ExprKind::Func(_, _, _) => todo!(),
-        _ => Stmt::Expr(res_expr(expr)),
+        StmtKind::Func(_, _, _) => todo!(),
+        StmtKind::Expr(expr) => IRStmt::Expr(res_expr(expr)),
     };
 
     block.stmts.push(stmt);
@@ -126,10 +126,6 @@ fn resolve_expr(block: &mut Block, program: &Program, expr: &Expr) -> IRExpr {
             };
             IRExpr::Call(fn_name, args)
         },
-        _ => { 
-            resolve_stmt(block, program, expr);
-            IRExpr::Val(0.0)
-        }
     }
 }
 
