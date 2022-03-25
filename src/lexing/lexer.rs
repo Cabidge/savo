@@ -316,6 +316,9 @@ impl fmt::Display for TokenKind {
             TokenKind::Let          => write!(f, "[let]"),
             TokenKind::Ident(ident) => write!(f, "['{}']", ident),
 
+            TokenKind::If => write!(f, "[if]"),
+            TokenKind::Else => write!(f, "[else]"),
+
             TokenKind::EQ => write!(f, "[=]"),
             TokenKind::LT => write!(f, "[<]"),
             TokenKind::GT => write!(f, "[>]"),
@@ -330,6 +333,7 @@ impl fmt::Display for TokenKind {
 
             TokenKind::LArrow => write!(f, "[<-]"),
             TokenKind::RArrow => write!(f, "[->]"),
+            TokenKind::RFatArrow => write!(f, "[=>]"),
 
             TokenKind::Dump     => write!(f, "[>>]"),
             TokenKind::Char(ch) => write!(f, "c'{}'", ch),
