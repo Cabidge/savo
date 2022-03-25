@@ -18,7 +18,7 @@ use inkwell::{
 
 use std::collections::HashMap;
 
-use crate::resolving::{ Program, Block, Stmt, Expr, Op };
+use crate::resolving::{ Program, BlockRoot, Stmt, Expr, Op };
 
 pub struct Compiler<'ctx> {
     pub ctx: &'ctx Context,
@@ -144,7 +144,7 @@ impl<'ctx> Compiler<'ctx> {
         unsafe { temp_fn.delete() } // I can't figure out a fucking way to do this better
     }
 
-    fn compile_func(&self, name: &str, block: &Block) {
+    fn compile_func(&self, name: &str, block: &BlockRoot) {
         let f64_type = self.ctx.f64_type();
 
         // Add entry
@@ -215,6 +215,7 @@ impl<'ctx> Compiler<'ctx> {
 
                 builder.build_call(printf_fn, &[fmt_string.into(), ch.into()], "dump ch");
             },
+            _ => todo!()
         }
     }
 

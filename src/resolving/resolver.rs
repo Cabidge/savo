@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::program::{ Program, Block, Op, Expr as IRExpr, Stmt as IRStmt };
+use super::program::{ Program, BlockRoot, Block, Op, Expr as IRExpr, Stmt as IRStmt };
 use crate::parsing::*;
 
 pub fn resolve_stmts(stmts: &[Stmt]) -> Program {
@@ -39,32 +39,27 @@ fn resolve_func(
     program: &Program,
     params: &[String],
     body: &[Stmt]
-) -> Block {
-    let mut block = Block::new(params.len());
+) -> BlockRoot {
+    let mut block = Block::Root(BlockRoot::new(params.len()));
 
     for (i, param) in params.iter().enumerate() {
         block.define(param.clone());
         let param = block.get_var_name(param, &program.globals).unwrap();
-        block.stmts.push(IRStmt::Set(param, IRExpr::Param(i)));
+        block.add_stmt(IRStmt::Set(param, IRExpr::Param(i)));
     }
 
     for stmt in body.iter() {
         resolve_stmt(&mut block, program, stmt);
     }
 
-    // I'll need to figure out a better way to do this some other time...
-    if block.stmts.len() == 0 {
-        block.stmts.push(IRStmt::Return(IRExpr::Val(0.0)));
-    } else if let IRStmt::Return(_) = block.stmts[block.stmts.len() - 1] {
-
+    if let Block::Root(root) = block {
+        root
     } else {
-        block.stmts.push(IRStmt::Return(IRExpr::Val(0.0)));
+        unreachable!()
     }
-
-    block
 }
 
-fn resolve_stmt(block: &mut Block, program: &Program, stmt: &Stmt) {
+fn resolve_stmt(block: &mut Block<'_>, program: &Program, stmt: &Stmt) {
     let mut res_expr = |expr| resolve_expr(block, program, expr);
 
     let stmt = match &stmt.kind {
@@ -93,16 +88,16 @@ fn resolve_stmt(block: &mut Block, program: &Program, stmt: &Stmt) {
         StmtKind::DumpChar(ch) => IRStmt::DumpChar(*ch),
         StmtKind::DumpStr(s) => {
             s.chars().for_each(|ch| {
-                block.stmts.push(IRStmt::DumpChar(ch))
+                block.add_stmt(IRStmt::DumpChar(ch))
             });
             return;
         }
     };
 
-    block.stmts.push(stmt);
+    block.add_stmt(stmt);
 }
 
-fn resolve_expr(block: &mut Block, program: &Program, expr: &Expr) -> IRExpr {
+fn resolve_expr(block: &mut Block<'_>, program: &Program, expr: &Expr) -> IRExpr {
     match &*expr.kind {
         ExprKind::Value(n) => IRExpr::Val(*n),
         ExprKind::Get(name) => {
