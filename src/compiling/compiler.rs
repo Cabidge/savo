@@ -177,7 +177,7 @@ impl<'ctx> Compiler<'ctx> {
         };
 
         for stmt in block.stmts.iter() {
-            self.build_stmt(stmt, &fn_ctx, None);
+            self.build_stmt(stmt, &fn_ctx);
         }
     }
 
@@ -191,16 +191,14 @@ impl<'ctx> Compiler<'ctx> {
         })
     }
 
-    fn build_stmt(&self, stmt: &Stmt, fn_ctx: &FuncContext<'ctx>, break_target: Option<BasicBlock<'ctx>>) {
+    fn build_stmt(&self, stmt: &Stmt, fn_ctx: &FuncContext<'ctx>) {
         match stmt {
             Stmt::Set(name, expr) => {
                 let ptr = self.get_var_ptr(name, Some(&fn_ctx.locals)).unwrap();
                 let value = self.build_expr(expr, fn_ctx);
                 fn_ctx.builder.build_store(ptr, value);
             },
-            Stmt::Break(_) => if let Some(dest) = break_target {
-                fn_ctx.builder.build_unconditional_branch(dest);
-            },
+            Stmt::Break(_) => unimplemented!(),
             Stmt::Return(expr) => {
                 let value = self.build_expr(expr, fn_ctx);
                 fn_ctx.builder.build_return(Some(&value));
@@ -289,7 +287,45 @@ impl<'ctx> Compiler<'ctx> {
                     .unwrap()
                     .into_float_value()
             },
-            _ => todo!(),
+            Expr::If(cond, then, elze) => {
+                let then_block = self.ctx.append_basic_block(fn_ctx.func, "if.then");
+                let else_block = self.ctx.append_basic_block(fn_ctx.func, "if.else");
+                let end_block = self.ctx.append_basic_block(fn_ctx.func, "if.end");
+
+                let bool_type = self.ctx.bool_type();
+                let cond = self.build_expr(cond, fn_ctx);
+                let cond = fn_ctx.builder.build_float_to_unsigned_int(cond, bool_type, "double2bool");
+
+                fn_ctx.builder.build_conditional_branch(cond, then_block, else_block);
+
+                fn_ctx.builder.position_at_end(then_block);
+
+                fn_ctx.builder.position_at_end(else_block);
+
+                fn_ctx.builder.position_at_end(end_block);
+
+                todo!();
+            },
+        }
+    }
+
+    fn build_scope(&self, stmts: Vec<Stmt>, fn_ctx: &FuncContext<'ctx>, branch_target: Option<BasicBlock<'ctx>>) -> FloatValue<'ctx> {
+        for stmt in &stmts[..stmts.len()-1] {
+            self.build_stmt(stmt, fn_ctx);
+        }
+
+        match stmts.last().unwrap() {
+            Stmt::Break(val) => {
+                let val = self.build_expr(val, fn_ctx);
+                if let Some(dest) = branch_target {
+                    fn_ctx.builder.build_unconditional_branch(dest);
+                }
+                val
+            },
+            stmt => {
+                self.build_stmt(stmt, fn_ctx);
+                self.ctx.f64_type().const_float(f64::NAN)
+            },
         }
     }
 }
