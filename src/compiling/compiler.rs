@@ -4,6 +4,7 @@ use inkwell::{
     builder::Builder,
     values::{BasicMetadataValueEnum, FloatValue, PointerValue, FunctionValue},
     AddressSpace,
+    basic_block::BasicBlock,
     targets::{
         CodeModel,
         FileType,
@@ -176,7 +177,7 @@ impl<'ctx> Compiler<'ctx> {
         };
 
         for stmt in block.stmts.iter() {
-            self.build_stmt(stmt, &fn_ctx);
+            self.build_stmt(stmt, &fn_ctx, None);
         }
     }
 
@@ -190,12 +191,15 @@ impl<'ctx> Compiler<'ctx> {
         })
     }
 
-    fn build_stmt(&self, stmt: &Stmt, fn_ctx: &FuncContext<'ctx>) {
+    fn build_stmt(&self, stmt: &Stmt, fn_ctx: &FuncContext<'ctx>, break_target: Option<BasicBlock<'ctx>>) {
         match stmt {
             Stmt::Set(name, expr) => {
                 let ptr = self.get_var_ptr(name, Some(&fn_ctx.locals)).unwrap();
                 let value = self.build_expr(expr, fn_ctx);
                 fn_ctx.builder.build_store(ptr, value);
+            },
+            Stmt::Break(_) => if let Some(dest) = break_target {
+                fn_ctx.builder.build_unconditional_branch(dest);
             },
             Stmt::Return(expr) => {
                 let value = self.build_expr(expr, fn_ctx);
@@ -227,7 +231,6 @@ impl<'ctx> Compiler<'ctx> {
 
                 fn_ctx.builder.build_call(printf_fn, &[fmt_string.into(), ch.into()], "dump ch");
             },
-            _ => todo!(),
         }
     }
 
