@@ -180,16 +180,18 @@ impl Parser {
                         if let StmtKind::Return(_) = stmt.kind {
                             self.eat_current(&TokenKind::Semicolon); // Eat optional semicolon
                             if self.current().kind != TokenKind::RBrace {
-                                ErrorKind::ExpectBlockEndAfterReturn.raise_from(self.current())?;
+                                error = Some(ErrorKind::ExpectBlockEndAfterReturn.raise_from(self.current()).unwrap_err());
                             }
                         } else if !self.eat_current(&TokenKind::Semicolon) {
-                            ErrorKind::ExpectSemicolonAfterStmt.raise_from(self.current())?;
+                            error = Some(ErrorKind::ExpectSemicolonAfterStmt.raise_from(self.current()).unwrap_err());
                         }
 
                         stmts.push(stmt);
                     },
                     Err(err) => error = Some(err),
                 }
+            } else {
+                self.advance();
             }
         }
 
