@@ -226,7 +226,13 @@ impl Parser {
             TokenKind::RFatArrow => self.parse_return(),
             TokenKind::Dump => self.parse_dump(),
             TokenKind::Ident(_) => self.parse_ident_stmt(),
-            _ => panic!("{:?}", self.current()), // TODO: Error handling
+            _ => {
+                let token = self.current().clone();
+                Ok(Stmt {
+                    kind: StmtKind::Expr(self.parse_expr()?),
+                    token,
+                })
+            }
         }
     }
 
