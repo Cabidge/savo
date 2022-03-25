@@ -184,8 +184,19 @@ impl Parser {
                             if self.current().kind != TokenKind::RBrace {
                                 error = Some(ErrorKind::ExpectBlockEndAfterReturn.raise_from(self.current()).unwrap_err());
                             }
-                        } else if !self.eat_current(&TokenKind::Semicolon) {
-                            error = Some(ErrorKind::ExpectSemicolonAfterStmt.raise_from(self.current()).unwrap_err());
+                        } else {
+                            let expect_semicolon = match &stmt.kind {
+                                StmtKind::Expr(exp) => match &*exp.kind {
+                                    ExprKind::If(_, _, _) => false,
+                                    _ => true,
+                                }
+                                StmtKind::Func(_, _, _) => false,
+                                _ => true,
+                            };
+
+                            if expect_semicolon && !self.eat_current(&TokenKind::Semicolon) {
+                                error = Some(ErrorKind::ExpectSemicolonAfterStmt.raise_from(self.current()).unwrap_err());
+                            }
                         }
 
                         stmts.push(stmt);

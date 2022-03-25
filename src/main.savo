@@ -6,5 +6,5 @@ let loop(min, max) {
     if min < max {
         >> min;
         loop(min + 1, max);
-    };
+    }
 }
