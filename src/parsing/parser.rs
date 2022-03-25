@@ -58,6 +58,7 @@ pub enum ErrorKind {
     ExpectBraceAfterParams,
     ExpectClosingBrace,
     ExpectSemicolonAfterStmt,
+    ExpectBlockEndAfterReturn,
 }
 
 impl Parser {
@@ -176,10 +177,16 @@ impl Parser {
             if error.is_none() {
                 match self.parse_stmt() {
                     Ok(stmt) => {
-                        stmts.push(stmt);
-                        if !self.eat_current(&TokenKind::Semicolon) {
+                        if let StmtKind::Return(_) = stmt.kind {
+                            self.eat_current(&TokenKind::Semicolon); // Eat optional semicolon
+                            if self.current().kind != TokenKind::RBrace {
+                                ErrorKind::ExpectBlockEndAfterReturn.raise_from(self.current())?;
+                            }
+                        } else if !self.eat_current(&TokenKind::Semicolon) {
                             ErrorKind::ExpectSemicolonAfterStmt.raise_from(self.current())?;
                         }
+
+                        stmts.push(stmt);
                     },
                     Err(err) => error = Some(err),
                 }
