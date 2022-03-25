@@ -383,8 +383,8 @@ impl Parser {
 
     fn parse_return(&mut self) -> Result<Stmt, Error> {
         let rarrow_token = self.current().clone();
-        if rarrow_token.kind != TokenKind::RArrow {
-            panic!("Cannot call parse_set on a non-`->` token...");
+        if rarrow_token.kind != TokenKind::RFatArrow {
+            panic!("Cannot call parse_return on a non-`=>` token...");
         }
 
         self.advance();
