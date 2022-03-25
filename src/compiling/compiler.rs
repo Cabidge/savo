@@ -13,6 +13,7 @@ use inkwell::{
         TargetMachine,
     },
     OptimizationLevel,
+    FloatPredicate,
 };
 
 use std::collections::HashMap;
@@ -231,7 +232,31 @@ impl<'ctx> Compiler<'ctx> {
                 let rhs = self.build_expr(rhs, builder, locals, func);
                 match op {
                     Op::Add => builder.build_float_add(lhs, rhs, "add"),
-                    _ => todo!(),
+                    Op::Sub => builder.build_float_sub(lhs, rhs, "sub"),
+                    Op::Mul => builder.build_float_mul(lhs, rhs, "mul"),
+                    Op::Div => builder.build_float_div(lhs, rhs, "div"),
+                    _ => {
+                        // Comparison
+                        // Cast bool to double
+                        let pred = match op {
+                            Op::EQ => FloatPredicate::OEQ,
+                            Op::LT => FloatPredicate::OLT,
+                            Op::GT => FloatPredicate::OGT,
+                            Op::NE => FloatPredicate::ONE,
+                            Op::GE => FloatPredicate::OGE,
+                            Op::LE => FloatPredicate::OLE,
+                            _ => unreachable!(),
+                        };
+
+                        let boolean = builder.build_float_compare(
+                            pred,
+                            lhs,
+                            rhs,
+                            "compare",
+                        );
+
+                        builder.build_unsigned_int_to_float(boolean, f64_type, "cast2f64")
+                    }
                 }
             },
             Expr::Call(name, args) => {

@@ -1,3 +1,6 @@
 let main() {
     >> "Hello world\n";
+    let inf = 1 / 0;
+    let nan =  inf - inf;
+    >> nan = nan;
 }
