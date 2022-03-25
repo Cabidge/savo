@@ -20,6 +20,9 @@ pub enum StmtKind {
     Func(String, Vec<String>, Vec<Stmt>),
     Set(String, Expr),
     Return(Expr),
+    Dump(Expr),
+    DumpChar(char),
+    DumpStr(String),
     Expr(Expr),
 }
 
@@ -194,9 +197,37 @@ impl Parser {
         match &self.current().kind {
             TokenKind::Let => self.parse_let(),
             TokenKind::RArrow => self.parse_return(),
+            TokenKind::Dump => self.parse_dump(),
             TokenKind::Ident(_) => self.parse_ident_stmt(),
             _ => panic!("{:?}", self.current()), // TODO: Error handling
         }
+    }
+
+    fn parse_dump(&mut self) -> Result<Stmt, Error> {
+        let dump_token = self.current().clone();
+        if dump_token.kind != TokenKind::Dump {
+            panic!("Cannot call parse_dump on a non-`>>` token...");
+        }
+
+        let stmt = match &self.advance().kind {
+            TokenKind::Char(ch) => Stmt {
+                kind: StmtKind::DumpChar(*ch),
+                token: dump_token,
+            },
+            TokenKind::Str(s) => Stmt {
+                kind: StmtKind::DumpStr(s.clone()),
+                token: dump_token,
+            },
+            _ => {
+                let expr = self.parse_expr()?;
+                Stmt {
+                    kind: StmtKind::Dump(expr),
+                    token: dump_token,
+                }
+            }
+        };
+
+        Ok(stmt)
     }
 
     fn parse_expr(&mut self) -> Result<Expr, Error> {
