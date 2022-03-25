@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 
-use super::program::{ Program, BlockRoot, Block, Op, Expr as IRExpr, Stmt as IRStmt };
+use super::program::{ Program, BlockRoot, SubBlock, Block, Op, Expr as IRExpr, Stmt as IRStmt };
 use crate::parsing::*;
 
 pub fn resolve_stmts(stmts: &[Stmt]) -> Program {
@@ -48,9 +50,15 @@ fn resolve_func(
         block.add_stmt(IRStmt::Set(param, IRExpr::Param(i)));
     }
 
+    let block = Rc::new(RefCell::new(block));
     for stmt in body.iter() {
-        resolve_stmt(&mut block, program, stmt);
+        resolve_stmt(block.clone(), program, stmt);
     }
+
+    let block = Rc::try_unwrap(block)
+        .map_err(|_| "How da dog doin?".to_string())
+        .unwrap()
+        .into_inner();
 
     if let Block::Root(root) = block {
         root
@@ -59,24 +67,24 @@ fn resolve_func(
     }
 }
 
-fn resolve_stmt(block: &mut Block<'_>, program: &Program, stmt: &Stmt) {
-    let mut res_expr = |expr| resolve_expr(block, program, expr);
+fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) {
+    let res_expr = |expr| resolve_expr(block.clone(), program, expr);
 
     let stmt = match &stmt.kind {
         StmtKind::Var(name, initial) => {
             let initial = res_expr(initial);
-            block.define(name.clone());
-            let name = block.get_var_name(name, &program.globals).unwrap();
+            block.borrow_mut().define(name.clone());
+            let name = block.borrow().get_var_name(name, &program.globals).unwrap();
             IRStmt::Set(name, initial)
         },
         StmtKind::Set(name, value) => {
             let value = res_expr(value);
-            let name = block.get_var_name(name, &program.globals).unwrap();
+            let name = block.borrow().get_var_name(name, &program.globals).unwrap();
             IRStmt::Set(name, value)
         },
         StmtKind::Break(value) => {
             let value = res_expr(value);
-            match block {
+            match &*block.borrow() {
                 Block::Root(_) => IRStmt::Return(value),
                 Block::Sub(_) => IRStmt::Break(value),
             }
@@ -91,25 +99,44 @@ fn resolve_stmt(block: &mut Block<'_>, program: &Program, stmt: &Stmt) {
         StmtKind::DumpChar(ch) => IRStmt::DumpChar(*ch),
         StmtKind::DumpStr(s) => {
             s.chars().for_each(|ch| {
-                block.add_stmt(IRStmt::DumpChar(ch))
+                block.borrow_mut().add_stmt(IRStmt::DumpChar(ch))
             });
             return;
         }
     };
 
-    block.add_stmt(stmt);
+    block.borrow_mut().add_stmt(stmt);
 }
 
-fn resolve_expr(block: &mut Block<'_>, program: &Program, expr: &Expr) -> IRExpr {
+fn resolve_scope(parent: Rc<RefCell<Block>>, program: &Program, stmts: &[Stmt]) -> Vec<IRStmt> {
+    let block = Rc::new(RefCell::new(Block::Sub(SubBlock::from(parent))));
+
+    for stmt in stmts.iter() {
+        resolve_stmt(block.clone(), program, stmt);
+    }
+
+    let block = Rc::try_unwrap(block)
+        .map_err(|_| "What da dog doin?".to_string())
+        .unwrap()
+        .into_inner();
+
+    if let Block::Sub(sub) = block {
+        sub.stmts
+    } else {
+        unreachable!()
+    }
+}
+
+fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IRExpr {
     match &*expr.kind {
         ExprKind::Value(n) => IRExpr::Val(*n),
         ExprKind::Get(name) => {
-            let name = block.get_var_name(name, &program.globals).unwrap();
+            let name = block.borrow().get_var_name(name, &program.globals).unwrap();
             IRExpr::Get(name)
         },
         ExprKind::BinOp(lhs, rhs) => {
             let op = Op::try_from(&expr.token).unwrap();
-            let lhs = resolve_expr(block, program, lhs);
+            let lhs = resolve_expr(block.clone(), program, lhs);
             let rhs = resolve_expr(block, program, rhs);
             IRExpr::BinOp(op, lhs.into(), rhs.into())
         }
@@ -120,7 +147,7 @@ fn resolve_expr(block: &mut Block<'_>, program: &Program, expr: &Expr) -> IRExpr
         },
         ExprKind::Call(args) => {
             let args: Vec<_> = args.iter()
-                .map(|arg| resolve_expr(block, program, arg))
+                .map(|arg| resolve_expr(block.clone(), program, arg))
                 .collect();
 
             let fn_name = {
@@ -132,6 +159,13 @@ fn resolve_expr(block: &mut Block<'_>, program: &Program, expr: &Expr) -> IRExpr
                 }
             };
             IRExpr::Call(fn_name, args)
+        },
+        ExprKind::If(cond, then, elze) => {
+            let cond = resolve_expr(block.clone(), program, expr);
+            let then = resolve_scope(block.clone(), program, then);
+            let elze = resolve_scope(block, program, elze);
+
+            IRExpr::If(cond.into(), then, elze)
         },
     }
 }

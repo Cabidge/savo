@@ -215,7 +215,7 @@ impl<'ctx> Compiler<'ctx> {
 
                 builder.build_call(printf_fn, &[fmt_string.into(), ch.into()], "dump ch");
             },
-            _ => todo!()
+            _ => todo!(),
         }
     }
 
@@ -274,6 +274,7 @@ impl<'ctx> Compiler<'ctx> {
                     .unwrap()
                     .into_float_value()
             },
+            _ => todo!(),
         }
     }
 }

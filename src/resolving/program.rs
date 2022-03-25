@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::rc::Rc;
+use std::cell::RefCell;
 use crate::lexing::{ Token, TokenKind };
 
 pub struct Program {
@@ -45,13 +47,14 @@ pub struct BlockRoot {
     pub stmts: Vec<Stmt>,
 }
 
-pub enum Block<'a> {
+pub enum Block {
     Root(BlockRoot),
-    Sub(SubBlock<'a>),
+    Sub(SubBlock),
 }
 
-pub struct SubBlock<'a> {
-    pub parent: &'a mut Block<'a>,
+pub struct SubBlock {
+    pub parent: Rc<RefCell<Block>>,
+    pub stmts: Vec<Stmt>,
 }
 
 impl BlockRoot {
@@ -96,11 +99,11 @@ impl BlockRoot {
     }
 }
 
-impl<'a> Block<'a> {
+impl Block {
     pub(super) fn add_stmt(&mut self, stmt: Stmt) {
         match self {
             Block::Root(root) => root.stmts.push(stmt),
-            Block::Sub(sub) => sub.parent.add_stmt(stmt),
+            Block::Sub(sub) => sub.stmts.push(stmt),
         }
     }
 
@@ -119,21 +122,22 @@ impl<'a> Block<'a> {
     }
 }
 
-impl<'a> SubBlock<'a> {
-    pub fn from(parent: &'a mut Block<'a>) -> SubBlock<'a> {
+impl SubBlock {
+    pub fn from(parent: Rc<RefCell<Block>>) -> SubBlock {
         Self {
             parent,
+            stmts: Vec::new(),
         }
     }
 
     pub(super) fn define(&mut self, name: String) {
-        self.parent.define(format!(">{}", name))
+        self.parent.borrow_mut().define(format!(">{}", name))
     }
 
     pub(super) fn get_var_name(&self, name: &str, globals: &HashMap<String, f64>) -> Option<String> {
-        self.parent
+        self.parent.borrow()
             .get_var_name(&format!(">{}", name), globals)
-            .or_else(|| self.parent.get_var_name(name, globals))
+            .or_else(|| self.parent.borrow().get_var_name(name, globals))
     }
 }
 
@@ -153,7 +157,8 @@ pub enum Expr {
     Param(usize),
     Get(String),
     BinOp(Op, Box<Expr>, Box<Expr>),
-    Call(String, Vec<Expr>)
+    Call(String, Vec<Expr>),
+    If(Box<Expr>, Vec<Stmt>, Vec<Stmt>),
 }
 
 #[derive(Debug)]

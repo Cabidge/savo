@@ -40,6 +40,7 @@ pub enum ExprKind {
     BinOp(Expr, Expr),
     Negate(Expr),
     Call(Vec<Expr>),
+    If(Expr, Vec<Stmt>, Vec<Stmt>),
 }
 
 #[derive(Debug)]
@@ -297,6 +298,7 @@ impl Parser {
             TokenKind::Value(_) => self.parse_value(),
             TokenKind::Ident(_) => self.parse_ident_expr(),
             TokenKind::Sub => self.parse_negate(),
+            TokenKind::If => self.parse_if(),
             _ => panic!("{:?}", self.current()), // TODO: Error handling
         }
     }
@@ -369,6 +371,35 @@ impl Parser {
         Ok(Stmt {
             kind: StmtKind::Set(ident, expr),
             token: larrow_token,
+        })
+    }
+
+    fn parse_if(&mut self) -> Result<Expr, Error> {
+        let if_token = self.current().clone();
+        if if_token.kind != TokenKind::If {
+            panic!("Cannot call parse_if on a non-if token...");
+        }
+
+        self.advance();
+
+        let cond = self.parse_expr()?;
+        let then = self.parse_block()?;
+
+        let elze = if self.eat_current(&TokenKind::Else) {
+            self.parse_block()?
+        } else {
+            vec![Stmt {
+                kind: StmtKind::Break(Expr {
+                    kind: ExprKind::Value(f64::NAN).into(),
+                    token: self.current().clone(),
+                }),
+                token: self.current().clone(),
+            }]
+        };
+
+        Ok(Expr {
+            kind: ExprKind::If(cond, then, elze).into(),
+            token: if_token,
         })
     }
 
@@ -481,6 +512,7 @@ impl fmt::Display for ExprKind {
             ExprKind::Get(name) => name.fmt(f),
             ExprKind::Negate(expr) => write!(f, "(neg {})", expr),
             ExprKind::BinOp(_, _) |
+            ExprKind::If(_, _, _) |
             ExprKind::Call(_) => unimplemented!(),
         }
     }
