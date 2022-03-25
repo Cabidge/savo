@@ -33,6 +33,10 @@ pub enum TokenKind {
     LArrow, // <-
     RArrow, // ->
 
+    Dump, // >>
+    Char(char),
+    Str(String),
+
     Comma,     // ,
     Semicolon, // ;
 
@@ -49,6 +53,9 @@ pub enum TokenKind {
 pub enum ErrorKind {
     UnexpectedChar(char),
     InvalidValue(String),
+    UnknownEscapeChar(char),
+    UnmatchedSingleQuote,
+    UnmatchedDoubleQuote,
 }
 
 impl Token {
@@ -121,7 +128,9 @@ impl Lexer {
         }
 
         if self.stream.eat_current('>') {
-            return if self.stream.eat_current('=') {
+            return if self.stream.eat_current('>') {
+                TokenKind::Dump // >>
+            } else if self.stream.eat_current('=') {
                 TokenKind::GE // >=
             } else {
                 TokenKind::GT // >
@@ -172,6 +181,18 @@ impl Lexer {
             return TokenKind::RBrace;
         }
 
+        if self.stream.eat_current('\'') {
+            return match self.anal_char() {
+                Ok(ch) if self.stream.eat_current('\'') => TokenKind::Char(ch),
+                Ok(_) => TokenKind::Error(ErrorKind::UnmatchedSingleQuote),
+                Err(kind) => TokenKind::Error(kind),
+            }
+        }
+
+        if self.stream.eat_current('"') {
+            return self.lex_string();
+        }
+
         if self.stream.current().is_numeric() {
             return self.lex_number();
         }
@@ -183,6 +204,44 @@ impl Lexer {
         let current = self.stream.current();
         self.stream.advance();
         TokenKind::Error(ErrorKind::UnexpectedChar(current))
+    }
+
+    /// lol
+    /// stands for "analyze character"
+    /// like advance but handles escape characters
+    fn anal_char(&mut self) -> Result<char, ErrorKind> {
+        if self.stream.eat_current('\\') {
+            // TODO: Add other escape chars
+            return if self.stream.eat_current('n') {
+                Ok('\n')
+            } else if self.stream.eat_current('t') {
+                Ok('\t')
+            } else if self.stream.eat_current('\\') {
+                Ok('\\')
+            } else if self.stream.eat_current('\'') {
+                Ok('\'')
+            } else if self.stream.eat_current('"') {
+                Ok('"')
+            } else {
+                Err(ErrorKind::UnknownEscapeChar(self.stream.take_current()))
+            }
+        }
+
+        Ok(self.stream.take_current())
+    }
+
+    fn lex_string(&mut self) -> TokenKind {
+        let mut string = String::new();
+
+        while !self.stream.eat_current('"') {
+            if self.stream.current() == '\0' {
+                return TokenKind::Error(ErrorKind::UnmatchedDoubleQuote);
+            }
+
+            string.push(self.stream.take_current());
+        }
+
+        TokenKind::Str(string)
     }
 
     fn lex_number(&mut self) -> TokenKind {
@@ -256,6 +315,10 @@ impl fmt::Display for TokenKind {
 
             TokenKind::LArrow => write!(f, "[<-]"),
             TokenKind::RArrow => write!(f, "[->]"),
+
+            TokenKind::Dump     => write!(f, "[>>]"),
+            TokenKind::Char(ch) => write!(f, "c'{}'", ch),
+            TokenKind::Str(s)   => write!(f, "s\"{}\"", s),
 
             TokenKind::Comma     => write!(f, "[,]"),
             TokenKind::Semicolon => write!(f, "[;]"),
