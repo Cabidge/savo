@@ -88,6 +88,14 @@ fn resolve_stmt(block: &mut Block, program: &Program, stmt: &Stmt) {
         },
         StmtKind::Func(_, _, _) => todo!(),
         StmtKind::Expr(expr) => IRStmt::Expr(res_expr(expr)),
+        StmtKind::Dump(expr) => IRStmt::Dump(res_expr(expr)),
+        StmtKind::DumpChar(ch) => IRStmt::DumpChar(*ch),
+        StmtKind::DumpStr(s) => {
+            s.chars().for_each(|ch| {
+                block.stmts.push(IRStmt::DumpChar(ch))
+            });
+            return;
+        }
     };
 
     block.stmts.push(stmt);

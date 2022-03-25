@@ -92,6 +92,8 @@ pub enum Stmt {
     Set(String, Expr),
     Return(Expr),
     Expr(Expr),
+    Dump(Expr),
+    DumpChar(char),
 }
 
 #[derive(Debug)]
