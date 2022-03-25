@@ -62,7 +62,7 @@ impl<'ctx> Compiler<'ctx> {
 
         // Define functions
         for (name, block) in program.funcs.iter() {
-            self.compile_func(name, block);
+            self.build_func(name, block);
         }
 
         // Define main
@@ -150,7 +150,7 @@ impl<'ctx> Compiler<'ctx> {
         unsafe { temp_fn.delete() } // I can't figure out a fucking way to do this better
     }
 
-    fn compile_func(&self, name: &str, block: &BlockRoot) {
+    fn build_func(&self, name: &str, block: &BlockRoot) {
         let f64_type = self.ctx.f64_type();
 
         // Add entry
