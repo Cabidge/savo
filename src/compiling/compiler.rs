@@ -27,6 +27,12 @@ pub struct Compiler<'ctx> {
 
 type LocalPtrs<'ctx> = HashMap<String, PointerValue<'ctx>>;
 
+struct FuncContext<'ctx> {
+    builder: Builder<'ctx>,
+    locals: LocalPtrs<'ctx>,
+    func: FunctionValue<'ctx>,
+}
+
 impl<'ctx> Compiler<'ctx> {
     pub fn new(ctx: &'ctx Context) -> Self {
         let module = ctx.create_module("module");
@@ -163,8 +169,14 @@ impl<'ctx> Compiler<'ctx> {
         }
 
         // Compile statements
+        let fn_ctx = FuncContext {
+            builder,
+            locals,
+            func,
+        };
+
         for stmt in block.stmts.iter() {
-            self.build_stmt(stmt, &builder, &locals, func);
+            self.build_stmt(stmt, &fn_ctx);
         }
     }
 
@@ -178,20 +190,20 @@ impl<'ctx> Compiler<'ctx> {
         })
     }
 
-    fn build_stmt(&self, stmt: &Stmt, builder: &Builder<'ctx>, locals: &LocalPtrs<'ctx>, func: FunctionValue<'ctx>) {
+    fn build_stmt(&self, stmt: &Stmt, fn_ctx: &FuncContext<'ctx>) {
         match stmt {
             Stmt::Set(name, expr) => {
-                let ptr = self.get_var_ptr(name, Some(locals)).unwrap();
-                let value = self.build_expr(expr, builder, locals, func);
-                builder.build_store(ptr, value);
+                let ptr = self.get_var_ptr(name, Some(&fn_ctx.locals)).unwrap();
+                let value = self.build_expr(expr, fn_ctx);
+                fn_ctx.builder.build_store(ptr, value);
             },
             Stmt::Return(expr) => {
-                let value = self.build_expr(expr, builder, locals, func);
-                builder.build_return(Some(&value));
+                let value = self.build_expr(expr, fn_ctx);
+                fn_ctx.builder.build_return(Some(&value));
             },
-            Stmt::Expr(expr) => { self.build_expr(expr, builder, locals, func); },
+            Stmt::Expr(expr) => { self.build_expr(expr, fn_ctx); },
             Stmt::Dump(expr) => {
-                let expr = self.build_expr(expr, builder, locals, func);
+                let expr = self.build_expr(expr, fn_ctx);
 
                 let printf_fn = self.module.get_function("printf").unwrap();
 
@@ -200,7 +212,7 @@ impl<'ctx> Compiler<'ctx> {
                     .unwrap()
                     .as_pointer_value();
 
-                builder.build_call(printf_fn, &[fmt_string.into(), expr.into()], "dump");
+                fn_ctx.builder.build_call(printf_fn, &[fmt_string.into(), expr.into()], "dump");
             },
             Stmt::DumpChar(ch) => {
                 let i8_type = self.ctx.i8_type();
@@ -213,29 +225,29 @@ impl<'ctx> Compiler<'ctx> {
                     .unwrap()
                     .as_pointer_value();
 
-                builder.build_call(printf_fn, &[fmt_string.into(), ch.into()], "dump ch");
+                fn_ctx.builder.build_call(printf_fn, &[fmt_string.into(), ch.into()], "dump ch");
             },
             _ => todo!(),
         }
     }
 
-    fn build_expr(&self, expr: &Expr, builder: &Builder<'ctx>, locals: &LocalPtrs<'ctx>, func: FunctionValue<'ctx>) ->  FloatValue<'ctx> {
+    fn build_expr(&self, expr: &Expr, fn_ctx: &FuncContext<'ctx>) ->  FloatValue<'ctx> {
         let f64_type = self.ctx.f64_type();
         match expr {
             Expr::Val(v) => f64_type.const_float(*v),
-            Expr::Param(n) => func.get_nth_param(*n as u32).unwrap().into_float_value(),
+            Expr::Param(n) => fn_ctx.func.get_nth_param(*n as u32).unwrap().into_float_value(),
             Expr::Get(name) => {
-                let ptr = self.get_var_ptr(name, Some(locals)).unwrap();
-                builder.build_load(ptr, "").into_float_value()
+                let ptr = self.get_var_ptr(name, Some(&fn_ctx.locals)).unwrap();
+                fn_ctx.builder.build_load(ptr, "").into_float_value()
             },
             Expr::BinOp(op, lhs, rhs) => {
-                let lhs = self.build_expr(lhs, builder, locals, func);
-                let rhs = self.build_expr(rhs, builder, locals, func);
+                let lhs = self.build_expr(lhs, fn_ctx);
+                let rhs = self.build_expr(rhs, fn_ctx);
                 match op {
-                    Op::Add => builder.build_float_add(lhs, rhs, "add"),
-                    Op::Sub => builder.build_float_sub(lhs, rhs, "sub"),
-                    Op::Mul => builder.build_float_mul(lhs, rhs, "mul"),
-                    Op::Div => builder.build_float_div(lhs, rhs, "div"),
+                    Op::Add => fn_ctx.builder.build_float_add(lhs, rhs, "add"),
+                    Op::Sub => fn_ctx.builder.build_float_sub(lhs, rhs, "sub"),
+                    Op::Mul => fn_ctx.builder.build_float_mul(lhs, rhs, "mul"),
+                    Op::Div => fn_ctx.builder.build_float_div(lhs, rhs, "div"),
                     _ => {
                         // Comparison
                         // Cast bool to double
@@ -249,26 +261,26 @@ impl<'ctx> Compiler<'ctx> {
                             _ => unreachable!(),
                         };
 
-                        let boolean = builder.build_float_compare(
+                        let boolean = fn_ctx.builder.build_float_compare(
                             pred,
                             lhs,
                             rhs,
                             "compare",
                         );
 
-                        builder.build_unsigned_int_to_float(boolean, f64_type, "cast2f64")
+                        fn_ctx.builder.build_unsigned_int_to_float(boolean, f64_type, "cast2f64")
                     }
                 }
             },
             Expr::Call(name, args) => {
                 let args = args
                     .iter()
-                    .map(|expr| self.build_expr(expr, builder, locals, func).into())
+                    .map(|expr| self.build_expr(expr, fn_ctx).into())
                     .collect::<Vec<BasicMetadataValueEnum>>();
                 
                 let func = self.module.get_function(name).unwrap();
 
-                builder.build_call(func, &args[..], &format!("call {}", name))
+                fn_ctx.builder.build_call(func, &args[..], &format!("call {}", name))
                     .try_as_basic_value()
                     .left()
                     .unwrap()
