@@ -299,17 +299,20 @@ impl<'ctx> Compiler<'ctx> {
                 fn_ctx.builder.build_conditional_branch(cond, then_block, else_block);
 
                 fn_ctx.builder.position_at_end(then_block);
+                let then_res = self.build_scope(then, fn_ctx, Some(end_block));
 
                 fn_ctx.builder.position_at_end(else_block);
+                let else_res = self.build_scope(elze, fn_ctx, Some(end_block));
 
                 fn_ctx.builder.position_at_end(end_block);
-
-                todo!();
+                let phi = fn_ctx.builder.build_phi(f64_type, "if.result");
+                phi.add_incoming(&[(&then_res, then_block), (&else_res, else_block)]);
+                phi.as_basic_value().into_float_value()
             },
         }
     }
 
-    fn build_scope(&self, stmts: Vec<Stmt>, fn_ctx: &FuncContext<'ctx>, branch_target: Option<BasicBlock<'ctx>>) -> FloatValue<'ctx> {
+    fn build_scope(&self, stmts: &Vec<Stmt>, fn_ctx: &FuncContext<'ctx>, branch_target: Option<BasicBlock<'ctx>>) -> FloatValue<'ctx> {
         for stmt in &stmts[..stmts.len()-1] {
             self.build_stmt(stmt, fn_ctx);
         }
