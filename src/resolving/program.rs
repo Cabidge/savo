@@ -45,12 +45,27 @@ pub struct Block {
     pub stmts: Vec<Stmt>,
 }
 
+pub enum BlockParent<'a> {
+    Root(&'a mut Block),
+    Sub(&'a mut SubBlock<'a>),
+}
+
+pub struct SubBlock<'a> {
+    pub parent: BlockParent<'a>,
+}
+
 impl Block {
     pub fn new(param_count: usize) -> Self {
         Block {
             param_count,
             vars: HashMap::new(),
             stmts: Vec::new(),
+        }
+    }
+
+    pub fn extend<'a>(&'a mut self) -> SubBlock<'a> {
+        SubBlock {
+            parent: BlockParent::Root(self),
         }
     }
 
@@ -84,6 +99,50 @@ impl Block {
         }
 
         vars
+    }
+}
+
+impl<'a> BlockParent<'a> {
+    pub(super) fn define(&mut self, name: String) {
+        match self {
+            BlockParent::Root(root) => root.define(name),
+            BlockParent::Sub(sub) => sub.define(name),
+        }
+    }
+
+    pub(super) fn get_var_name(&self, name: &str, globals: &HashMap<String, f64>) -> Option<String> {
+        match self {
+            BlockParent::Root(root) => root.get_var_name(name, globals),
+            BlockParent::Sub(sub) => sub.get_var_name(name, globals),
+        }
+    }
+}
+
+impl<'a> SubBlock<'a> {
+    pub fn from(parent: BlockParent<'a>) -> SubBlock<'a> {
+        Self {
+            parent,
+        }
+    }
+
+    pub(super) fn define(&mut self, name: String) {
+        self.parent.define(format!(">{}", name))
+    }
+
+    pub(super) fn get_var_name(&self, name: &str, globals: &HashMap<String, f64>) -> Option<String> {
+        self.parent.get_var_name(&format!(">{}", name), globals)
+    }
+}
+
+impl<'a> From<&'a mut Block> for BlockParent<'a> {
+    fn from(block: &'a mut Block) -> BlockParent<'a> {
+        BlockParent::Root(block)
+    }
+}
+
+impl<'a> From<&'a mut SubBlock<'a>> for BlockParent<'a> {
+    fn from(block: &'a mut SubBlock<'a>) -> BlockParent<'a> {
+        BlockParent::Sub(block)
     }
 }
 
