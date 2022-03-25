@@ -127,30 +127,20 @@ impl<'ctx> Compiler<'ctx> {
         let printf_fn_type = void_type.fn_type(&[str_type.into()], true);
         let printf_fn = self.module.add_function("printf", printf_fn_type, None);
 
-        // -- print
-        {
-            let print_fn_type = f64_type.fn_type(&[f64_type.into()], false);
-            let print_fn = self.module.add_function("print", print_fn_type, None);
+        // Create format string
+        let temp_fn_type = void_type.fn_type(&[], false);
+        let temp_fn = self.module.add_function("?temp?", temp_fn_type, None);
+        let temp_block = self.ctx.append_basic_block(temp_fn, "entry");
 
-            let builder = self.ctx.create_builder();
+        let builder = self.ctx.create_builder();
+        builder.position_at_end(temp_block);
 
-            // Add entry
-            let fn_block = self.ctx.append_basic_block(print_fn, "entry");
+        builder.build_return(None);
 
-            // Move builder
-            builder.position_at_end(fn_block);
+        builder.build_global_string_ptr("%f\n", ".floatfmt").as_pointer_value();
+        builder.build_global_string_ptr("%c\n", ".charfmt").as_pointer_value();
 
-            // Create format string
-            let fmt_string = builder.build_global_string_ptr("%f\n", ".floatfmt")
-                .as_pointer_value();
-
-            // Body
-            let param = print_fn.get_nth_param(0).unwrap();
-            builder.build_call(printf_fn, &[fmt_string.into(), param.into()], "");
-
-            // Return
-            builder.build_return(Some(&f64_type.const_zero()));
-        }
+        unsafe { temp_fn.delete() } // I can't figure out a fucking way to do this better
     }
 
     fn compile_func(&self, name: &str, block: &Block) {
@@ -199,6 +189,31 @@ impl<'ctx> Compiler<'ctx> {
                 builder.build_return(Some(&value));
             },
             Stmt::Expr(expr) => { self.build_expr(expr, builder, locals, func); },
+            Stmt::Dump(expr) => {
+                let expr = self.build_expr(expr, builder, locals, func);
+
+                let printf_fn = self.module.get_function("printf").unwrap();
+
+                let fmt_string = self.module
+                    .get_global(".floatfmt")
+                    .unwrap()
+                    .as_pointer_value();
+
+                builder.build_call(printf_fn, &[fmt_string.into(), expr.into()], "dump");
+            },
+            Stmt::DumpChar(ch) => {
+                let i8_type = self.ctx.i8_type();
+                let ch = i8_type.const_int(*ch as u64, false);
+
+                let printf_fn = self.module.get_function("printf").unwrap();
+
+                let fmt_string = self.module
+                    .get_global(".charfmt")
+                    .unwrap()
+                    .as_pointer_value();
+
+                builder.build_call(printf_fn, &[fmt_string.into(), ch.into()], "dump ch");
+            },
         }
     }
 
