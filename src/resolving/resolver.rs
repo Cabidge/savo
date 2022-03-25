@@ -76,7 +76,10 @@ fn resolve_stmt(block: &mut Block<'_>, program: &Program, stmt: &Stmt) {
         },
         StmtKind::Break(value) => {
             let value = res_expr(value);
-            IRStmt::Break(value)
+            match block {
+                Block::Root(_) => IRStmt::Return(value),
+                Block::Sub(_) => IRStmt::Break(value),
+            }
         },
         StmtKind::Return(value) => {
             let value = res_expr(value);
