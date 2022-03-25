@@ -132,7 +132,7 @@ impl<'a> SubBlock<'a> {
     pub(super) fn get_var_name(&self, name: &str, globals: &HashMap<String, f64>) -> Option<String> {
         self.parent
             .get_var_name(&format!(">{}", name), globals)
-            .or_else(|| parent.get_var_name(name), globals)
+            .or_else(|| parent.get_var_name(name, globals))
     }
 }
 
