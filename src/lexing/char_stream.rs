@@ -24,6 +24,12 @@ impl CharStream {
         self.get(self.index)
     }
 
+    pub fn take_current(&mut self) -> char {
+        let current = self.current();
+        self.advance();
+        current
+    }
+
     pub fn advance(&mut self) -> char {
         self.index += 1;
 
