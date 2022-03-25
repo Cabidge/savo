@@ -90,6 +90,7 @@ impl Block {
 #[derive(Debug)]
 pub enum Stmt {
     Set(String, Expr),
+    Break(Expr),
     Return(Expr),
     Expr(Expr),
     Dump(Expr),

@@ -79,11 +79,12 @@ fn resolve_stmt(block: &mut Block, program: &Program, stmt: &Stmt) {
             let name = block.get_var_name(name, &program.globals).unwrap();
             IRStmt::Set(name, value)
         },
+        StmtKind::Break(value) => {
+            let value = res_expr(value);
+            IRStmt::Break(value)
+        },
         StmtKind::Return(value) => {
             let value = res_expr(value);
-            if let Some(IRStmt::Return(_)) = &block.stmts[..].last() {
-                panic!("Unreachable return"); // TODO: Better error messages
-            }
             IRStmt::Return(value)
         },
         StmtKind::Func(_, _, _) => todo!(),

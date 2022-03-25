@@ -19,7 +19,8 @@ pub enum StmtKind {
     Var(String, Expr),
     Func(String, Vec<String>, Vec<Stmt>),
     Set(String, Expr),
-    Return(Expr),
+    Break(Expr),  // -> Used for "resolving" blocks
+    Return(Expr), // => Used for returning from functions
     Dump(Expr),
     DumpChar(char),
     DumpStr(String),
@@ -205,7 +206,7 @@ impl Parser {
     fn parse_stmt(&mut self) -> Result<Stmt, Error> {
         match &self.current().kind {
             TokenKind::Let => self.parse_let(),
-            TokenKind::RArrow => self.parse_return(),
+            TokenKind::RFatArrow => self.parse_return(),
             TokenKind::Dump => self.parse_dump(),
             TokenKind::Ident(_) => self.parse_ident_stmt(),
             _ => panic!("{:?}", self.current()), // TODO: Error handling
