@@ -199,6 +199,21 @@ impl Parser {
         if let Some(err) = error {
             Err(err)
         } else {
+            let is_resolved = match stmts.last() {
+                Some(Stmt {kind: StmtKind::Return(_), ..}) |
+                Some(Stmt {kind: StmtKind::Break(_), ..}) => true,
+                _ => false,
+            };
+
+            if !is_resolved {
+                stmts.push(Stmt {
+                    kind: StmtKind::Break(Expr {
+                        kind: ExprKind::Value(f64::NAN).into(),
+                        token: self.current().clone(),
+                    }),
+                    token: self.current().clone(),
+                })
+            }
             Ok(stmts)
         }
     }
