@@ -18,8 +18,10 @@ pub enum TokenKind {
     Let,
     Ident(String),
 
-    If,
-    Else,
+    Char(char),
+    Str(String),
+
+    Cond, // ?
 
     EQ, // =
     LT, // <
@@ -37,9 +39,8 @@ pub enum TokenKind {
     RArrow, // ->
     RFatArrow, // =>
 
-    Dump, // >>
-    Char(char),
-    Str(String),
+    DRight, // >>
+    DLeft,  // <<
 
     Comma,     // ,
     Semicolon, // ;
@@ -116,6 +117,10 @@ impl Lexer {
             return TokenKind::EOF;
         }
 
+        if self.stream.eat_current('?') {
+            return TokenKind::Cond;
+        }
+
         if self.stream.eat_current('=') {
             return if self.stream.eat_current('>') {
                 TokenKind::RFatArrow // =>
@@ -131,6 +136,8 @@ impl Lexer {
                 TokenKind::LE // <=
             } else if self.stream.eat_current('-') {
                 TokenKind::LArrow // <-
+            } else if self.stream.eat_current('<') {
+                TokenKind::DLeft // <<
             } else {
                 TokenKind::LT // <
             };
@@ -138,7 +145,7 @@ impl Lexer {
 
         if self.stream.eat_current('>') {
             return if self.stream.eat_current('>') {
-                TokenKind::Dump // >>
+                TokenKind::DRight // >>
             } else if self.stream.eat_current('=') {
                 TokenKind::GE // >=
             } else {
@@ -285,8 +292,6 @@ impl Lexer {
 
         match ident.as_str() {
             "let" => TokenKind::Let,
-            "if" => TokenKind::If,
-            "else" => TokenKind::Else,
             "printf" => TokenKind::Error(ErrorKind::ReservedKeyword("printf")),
             _ => TokenKind::Ident(ident),
         }
@@ -316,8 +321,10 @@ impl fmt::Display for TokenKind {
             TokenKind::Let          => write!(f, "[let]"),
             TokenKind::Ident(ident) => write!(f, "['{}']", ident),
 
-            TokenKind::If => write!(f, "[if]"),
-            TokenKind::Else => write!(f, "[else]"),
+            TokenKind::Char(ch) => write!(f, "c'{}'", ch),
+            TokenKind::Str(s)   => write!(f, "s\"{}\"", s),
+
+            TokenKind::Cond => write!(f, "[?]"),
 
             TokenKind::EQ => write!(f, "[=]"),
             TokenKind::LT => write!(f, "[<]"),
@@ -335,9 +342,8 @@ impl fmt::Display for TokenKind {
             TokenKind::RArrow => write!(f, "[->]"),
             TokenKind::RFatArrow => write!(f, "[=>]"),
 
-            TokenKind::Dump     => write!(f, "[>>]"),
-            TokenKind::Char(ch) => write!(f, "c'{}'", ch),
-            TokenKind::Str(s)   => write!(f, "s\"{}\"", s),
+            TokenKind::DRight => write!(f, "[>>]"),
+            TokenKind::DLeft  => write!(f, "[<<]"),
 
             TokenKind::Comma     => write!(f, "[,]"),
             TokenKind::Semicolon => write!(f, "[;]"),
