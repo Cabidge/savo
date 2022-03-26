@@ -163,6 +163,7 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IR
             };
             IRExpr::Call(fn_name, args)
         },
+        _ => todo!(),
     }
 }
 

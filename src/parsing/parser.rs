@@ -47,6 +47,7 @@ pub enum ExprKind {
     BinOp(Expr, Expr),
     Negate(Expr),
     Call(Vec<Expr>),
+    Block(Vec<Expr>),
 }
 
 #[derive(Debug)]
@@ -66,7 +67,7 @@ pub enum ErrorKind {
     ExpectBraceAfterParams,
     ExpectClosingBrace,
     ExpectSemicolonAfterStmt,
-    ExpectBlockEndAfterReturn,
+    StmtAfterTerminator,
 }
 
 impl Parser {
@@ -185,20 +186,11 @@ impl Parser {
             if error.is_none() {
                 match self.parse_stmt() {
                     Ok(stmt) => {
-                        if let StmtKind::Cond(CondStmt::Return(_), _) = stmt.kind {
-                            self.eat_current(&TokenKind::Semicolon); // Eat optional semicolon
-                            if self.current().kind != TokenKind::RBrace {
-                                error = Some(ErrorKind::ExpectBlockEndAfterReturn.raise_from(self.current()).unwrap_err());
-                            }
-                        } else {
-                            let expect_semicolon = match &stmt.kind {
-                                StmtKind::Func(_, _, _) => false,
-                                _ => true,
-                            };
-
-                            if expect_semicolon && !self.eat_current(&TokenKind::Semicolon) {
-                                error = Some(ErrorKind::ExpectSemicolonAfterStmt.raise_from(self.current()).unwrap_err());
-                            }
+                        if !self.eat_current(&TokenKind::Semicolon) {
+                            error = Some(
+                                ErrorKind::ExpectSemicolonAfterStmt.raise_from(self.current())
+                                    .unwrap_err()
+                            );
                         }
 
                         stmts.push(stmt);
@@ -210,14 +202,31 @@ impl Parser {
             }
         }
 
+        fn is_terminator(stmt: &Stmt) -> bool {
+            match &stmt.kind {
+                StmtKind::Cond(cond_stmt, None) => match cond_stmt {
+                    CondStmt::Return(_) |
+                    CondStmt::Break(_) |
+                    CondStmt::Rewind => true,
+                    _ => false,
+                },
+                _ => false,
+            }
+        }
+
         if let Some(err) = error {
             Err(err)
         } else {
+            if let Some(_) = stmts.last() {
+                for stmt in &stmts[..stmts.len()-1] {
+                    if is_terminator(stmt) {
+                        ErrorKind::StmtAfterTerminator.raise_from(&stmt.token)?;
+                    }
+                }
+            }
+
             let is_resolved = match stmts.last() {
-                Some(Stmt {kind: StmtKind::Cond(cond_stmt, _), ..}) => match cond_stmt {
-                    CondStmt::Return(_) | CondStmt::Break(_) => true,
-                    _ => false,
-                },
+                Some(stmt) => is_terminator(stmt),
                 _ => false,
             };
 
@@ -230,6 +239,7 @@ impl Parser {
                     token: self.current().clone(),
                 })
             }
+
             Ok(stmts)
         }
     }
@@ -499,7 +509,8 @@ impl fmt::Display for ExprKind {
             ExprKind::Get(name) => name.fmt(f),
             ExprKind::Negate(expr) => write!(f, "(neg {})", expr),
             ExprKind::BinOp(_, _) |
-            ExprKind::Call(_) => unimplemented!(),
+            ExprKind::Call(_) => todo!(),
+            ExprKind::Block(_) => todo!(),
         }
     }
 }
