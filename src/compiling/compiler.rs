@@ -156,6 +156,20 @@ impl<'ctx> Compiler<'ctx> {
         unsafe { temp_fn.delete() } // I can't figure out a fucking way to do this better
     }
 
+    fn build_local(&self, var_name: &str, func: FunctionValue<'ctx>) -> PointerValue<'ctx> {
+        let fn_entry = func.get_first_basic_block()
+            .expect("Cannot call build_local on a function without a first block");
+
+        let br_instr = fn_entry.get_last_instruction()
+            .expect("Function entry has no instructions");
+
+        let builder = self.ctx.create_builder();
+
+        builder.position_before(&br_instr);
+
+        builder.build_alloca(self.ctx.f64_type(), var_name)
+    }
+
     fn build_func(&self, name: &str, block: &BlockRoot) {
         let f64_type = self.ctx.f64_type();
 
@@ -332,7 +346,28 @@ impl<'ctx> Compiler<'ctx> {
                     .unwrap()
                     .into_float_value()
             },
-            _ => todo!(),
+            Expr::Block(stmts) => {
+                let block_res = self.build_local("block.res", fn_ctx.func);
+                let block_entry = self.ctx.append_basic_block(fn_ctx.func, "block.entry");
+                let block_exit = self.ctx.append_basic_block(fn_ctx.func, "block.exit");
+
+                let block_ctx = BlockContext {
+                    entry: block_entry,
+                    exit: Some((block_exit, block_res)),
+                };
+
+                fn_ctx.builder.build_unconditional_branch(block_entry);
+
+                fn_ctx.builder.position_at_end(block_entry);
+                for stmt in stmts.iter() {
+                    self.build_stmt(stmt, fn_ctx, &block_ctx);
+                }
+
+                fn_ctx.builder.position_at_end(block_exit);
+                fn_ctx.builder
+                      .build_load(block_res, "")
+                      .into_float_value()
+            },
         }
     }
 }
