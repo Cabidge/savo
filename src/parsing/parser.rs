@@ -257,7 +257,16 @@ impl Parser {
             TokenKind::RArrow => self.parse_break(),
             TokenKind::RFatArrow => self.parse_return(),
             TokenKind::DRight => self.parse_dump(),
-            TokenKind::Ident(_) => self.parse_ident_stmt(),
+            TokenKind::Ident(_) => {
+                let stmt = self.parse_ident_stmt()?;
+
+                match stmt {
+                    CondStmt::Expr(expr) if self.eat_current(&TokenKind::Cond) => {
+                        return self.parse_cond(Some(expr));
+                    },
+                    _ => Ok(stmt)
+                }
+            }
             _ => {
                 let token = self.current().clone();
                 let expr = self.parse_expr()?;
@@ -363,7 +372,7 @@ impl Parser {
                 self.advance();
                 self.parse_set(ident)
             },
-            _ => Ok(CondStmt::Expr(self.parse_ident_expr()?))
+            _ => Ok(CondStmt::Expr(self.parse_expr()?))
         }
     }
 
