@@ -44,7 +44,7 @@ impl fmt::Display for Program {
 pub struct BlockRoot {
     pub param_count: usize,
     vars: HashMap<String, u8>,
-    pub stmts: Vec<Stmt>,
+    pub stmts: Vec<CondStmt>,
 }
 
 pub enum Block {
@@ -54,7 +54,7 @@ pub enum Block {
 
 pub struct SubBlock {
     pub parent: Rc<RefCell<Block>>,
-    pub stmts: Vec<Stmt>,
+    pub stmts: Vec<CondStmt>,
 }
 
 impl BlockRoot {
@@ -100,7 +100,7 @@ impl BlockRoot {
 }
 
 impl Block {
-    pub(super) fn add_stmt(&mut self, stmt: Stmt) {
+    pub(super) fn add_stmt(&mut self, stmt: CondStmt) {
         match self {
             Block::Root(root) => root.stmts.push(stmt),
             Block::Sub(sub) => sub.stmts.push(stmt),
@@ -142,7 +142,13 @@ impl SubBlock {
 }
 
 #[derive(Debug)]
-pub enum Stmt {
+pub struct CondStmt {
+    pub kind: StmtKind,
+    pub cond: Option<Expr>,
+}
+
+#[derive(Debug)]
+pub enum StmtKind {
     Set(String, Expr),
     Break(Expr),
     Return(Expr),
@@ -151,17 +157,16 @@ pub enum Stmt {
     DumpChar(char),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Val(f64),
     Param(usize),
     Get(String),
     BinOp(Op, Box<Expr>, Box<Expr>),
     Call(String, Vec<Expr>),
-    If(Box<Expr>, Vec<Stmt>, Vec<Stmt>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Op {
     // Algebraic
     Add,
@@ -176,6 +181,15 @@ pub enum Op {
     LT,
     GE,
     LE,
+}
+
+impl From<StmtKind> for CondStmt {
+    fn from(kind: StmtKind) -> Self {
+        Self {
+            kind,
+            cond: None,
+        }
+    }
 }
 
 impl TryFrom<&TokenKind> for Op {

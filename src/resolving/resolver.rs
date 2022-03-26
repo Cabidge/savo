@@ -2,7 +2,16 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use super::program::{ Program, BlockRoot, SubBlock, Block, Op, Expr as IRExpr, Stmt as IRStmt };
+use super::program::{
+    Program,
+    BlockRoot,
+    SubBlock,
+    Block,
+    Op,
+    Expr as IRExpr,
+    CondStmt as IRStmt,
+    StmtKind as IRStmtKind
+};
 use crate::parsing::*;
 
 pub fn resolve_stmts(stmts: &[Stmt]) -> Program {
@@ -47,7 +56,7 @@ fn resolve_func(
     for (i, param) in params.iter().enumerate() {
         block.define(param.clone());
         let param = block.get_var_name(param, &program.globals).unwrap();
-        block.add_stmt(IRStmt::Set(param, IRExpr::Param(i)));
+        block.add_stmt(IRStmtKind::Set(param, IRExpr::Param(i)).into());
     }
 
     let block = Rc::new(RefCell::new(block));
@@ -75,36 +84,54 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) {
             let initial = res_expr(initial);
             block.borrow_mut().define(name.clone());
             let name = block.borrow().get_var_name(name, &program.globals).unwrap();
-            IRStmt::Set(name, initial)
+            IRStmt {
+                kind: IRStmtKind::Set(name, initial),
+                cond: None,
+            }
         },
         StmtKind::Func(_, _, _) => todo!(),
-        StmtKind::Cond(cond_stmt, _) => match cond_stmt {
-            CondStmt::Set(name, value) => {
-                let value = res_expr(value);
-                let name = block.borrow().get_var_name(name, &program.globals).unwrap();
-                IRStmt::Set(name, value)
-            },
-            CondStmt::Break(value) => {
-                let value = res_expr(value);
-                match &*block.borrow() {
-                    Block::Root(_) => IRStmt::Return(value),
-                    Block::Sub(_) => IRStmt::Break(value),
+        StmtKind::Cond(cond_stmt, cond) => {
+            let cond = match cond {
+                Some(ex) => Some(res_expr(ex)),
+                None => None,
+            };
+
+            let kind = match cond_stmt {
+                CondStmt::Set(name, value) => {
+                    let value = res_expr(value);
+                    let name = block.borrow().get_var_name(name, &program.globals).unwrap();
+                    IRStmtKind::Set(name, value)
+                },
+                CondStmt::Break(value) => {
+                    let value = res_expr(value);
+                    match &*block.borrow() {
+                        Block::Root(_) => IRStmtKind::Return(value),
+                        Block::Sub(_) => IRStmtKind::Break(value),
+                    }
+                },
+                CondStmt::Return(value) => {
+                    let value = res_expr(value);
+                    IRStmtKind::Return(value)
+                },
+                CondStmt::Expr(expr) => IRStmtKind::Expr(res_expr(expr)),
+                CondStmt::Dump(expr) => IRStmtKind::Dump(res_expr(expr)),
+                CondStmt::DumpChar(ch) => IRStmtKind::DumpChar(*ch),
+                CondStmt::DumpStr(s) => {
+                    s.chars().for_each(|ch| {
+                        block.borrow_mut().add_stmt(IRStmt {
+                            kind: IRStmtKind::DumpChar(ch),
+                            cond: cond.clone(),
+                        })
+                    });
+                    return;
                 }
-            },
-            CondStmt::Return(value) => {
-                let value = res_expr(value);
-                IRStmt::Return(value)
-            },
-            CondStmt::Expr(expr) => IRStmt::Expr(res_expr(expr)),
-            CondStmt::Dump(expr) => IRStmt::Dump(res_expr(expr)),
-            CondStmt::DumpChar(ch) => IRStmt::DumpChar(*ch),
-            CondStmt::DumpStr(s) => {
-                s.chars().for_each(|ch| {
-                    block.borrow_mut().add_stmt(IRStmt::DumpChar(ch))
-                });
-                return;
+                _ => todo!(),
+            };
+
+            IRStmt {
+                kind,
+                cond,
             }
-            _ => todo!(),
         }
     };
 

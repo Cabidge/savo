@@ -19,7 +19,7 @@ use inkwell::{
 
 use std::collections::HashMap;
 
-use crate::resolving::{ Program, BlockRoot, Stmt, Expr, Op };
+use crate::resolving::{ Program, BlockRoot, CondStmt as Stmt, StmtKind, Expr, Op };
 
 pub struct Compiler<'ctx> {
     pub ctx: &'ctx Context,
@@ -192,19 +192,19 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     fn build_stmt(&self, stmt: &Stmt, fn_ctx: &FuncContext<'ctx>) {
-        match stmt {
-            Stmt::Set(name, expr) => {
+        match &stmt.kind {
+            StmtKind::Set(name, expr) => {
                 let ptr = self.get_var_ptr(name, Some(&fn_ctx.locals)).unwrap();
                 let value = self.build_expr(expr, fn_ctx);
                 fn_ctx.builder.build_store(ptr, value);
             },
-            Stmt::Break(_) => unimplemented!(),
-            Stmt::Return(expr) => {
+            StmtKind::Break(_) => unimplemented!(),
+            StmtKind::Return(expr) => {
                 let value = self.build_expr(expr, fn_ctx);
                 fn_ctx.builder.build_return(Some(&value));
             },
-            Stmt::Expr(expr) => { self.build_expr(expr, fn_ctx); },
-            Stmt::Dump(expr) => {
+            StmtKind::Expr(expr) => { self.build_expr(expr, fn_ctx); },
+            StmtKind::Dump(expr) => {
                 let expr = self.build_expr(expr, fn_ctx);
 
                 let printf_fn = self.module.get_function("printf").unwrap();
@@ -216,7 +216,7 @@ impl<'ctx> Compiler<'ctx> {
 
                 fn_ctx.builder.build_call(printf_fn, &[fmt_string.into(), expr.into()], "dump");
             },
-            Stmt::DumpChar(ch) => {
+            StmtKind::DumpChar(ch) => {
                 let i8_type = self.ctx.i8_type();
                 let ch = i8_type.const_int(*ch as u64, false);
 
@@ -287,28 +287,6 @@ impl<'ctx> Compiler<'ctx> {
                     .unwrap()
                     .into_float_value()
             },
-            Expr::If(cond, then, elze) => {
-                let then_block = self.ctx.append_basic_block(fn_ctx.func, "if.then");
-                let else_block = self.ctx.append_basic_block(fn_ctx.func, "if.else");
-                let end_block = self.ctx.append_basic_block(fn_ctx.func, "if.end");
-
-                let bool_type = self.ctx.bool_type();
-                let cond = self.build_expr(cond, fn_ctx);
-                let cond = fn_ctx.builder.build_float_to_unsigned_int(cond, bool_type, "double2bool");
-
-                fn_ctx.builder.build_conditional_branch(cond, then_block, else_block);
-
-                fn_ctx.builder.position_at_end(then_block);
-                let then_res = self.build_scope(then, fn_ctx, Some(end_block));
-
-                fn_ctx.builder.position_at_end(else_block);
-                let else_res = self.build_scope(elze, fn_ctx, Some(end_block));
-
-                fn_ctx.builder.position_at_end(end_block);
-                let phi = fn_ctx.builder.build_phi(f64_type, "if.result");
-                phi.add_incoming(&[(&then_res, then_block), (&else_res, else_block)]);
-                phi.as_basic_value().into_float_value()
-            },
         }
     }
 
@@ -318,7 +296,7 @@ impl<'ctx> Compiler<'ctx> {
         }
 
         match stmts.last().unwrap() {
-            Stmt::Break(val) => {
+            Stmt{ kind: StmtKind::Break(val), .. } => {
                 let val = self.build_expr(val, fn_ctx);
                 if let Some(dest) = branch_target {
                     fn_ctx.builder.build_unconditional_branch(dest);
