@@ -244,6 +244,15 @@ impl Parser {
         }
     }
 
+    fn parse_block_expr(&mut self) -> Result<Expr, Error> {
+        let token = self.current().clone();
+
+        Ok(Expr {
+            kind: ExprKind::Block(self.parse_block()?).into(),
+            token,
+        })
+    }
+
     fn parse_stmt(&mut self) -> Result<Stmt, Error> {
         match &self.current().kind {
             TokenKind::Let => self.parse_let(),
@@ -344,6 +353,7 @@ impl Parser {
             TokenKind::Value(_) => self.parse_value(),
             TokenKind::Ident(_) => self.parse_ident_expr(),
             TokenKind::Sub => self.parse_negate(),
+            TokenKind::LBrace => self.parse_block_expr(),
             _ => panic!("{:?}", self.current()), // TODO: Error handling
         }
     }
