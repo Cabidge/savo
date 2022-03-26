@@ -186,7 +186,9 @@ impl Parser {
             if error.is_none() {
                 match self.parse_stmt() {
                     Ok(stmt) => {
-                        if !self.eat_current(&TokenKind::Semicolon) {
+                        if !self.eat_current(&TokenKind::Semicolon) &&
+                            self.peek_previous().unwrap().kind != TokenKind::RBrace
+                        {
                             error = Some(
                                 ErrorKind::ExpectSemicolonAfterStmt.raise_from(self.current())
                                     .unwrap_err()
@@ -498,6 +500,14 @@ impl Parser {
 
     fn peek(&self) -> &Token {
         self.get_token(self.index + 1)
+    }
+
+    fn peek_previous(&self) -> Option<&Token> {
+        if self.index > 0 {
+            Some(self.get_token(self.index - 1))
+        } else {
+            None
+        }
     }
 }
 

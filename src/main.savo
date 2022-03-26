@@ -4,7 +4,7 @@ let main() {
         fizz_buzz(i);
         i <- i + 1;
         i <= 100? <<;
-    };
+    }
 }
 
 let fizz_buzz(n) {
@@ -15,7 +15,7 @@ let fizz_buzz(n) {
     neither? {
         >> n;
         => 0; # Exit early
-    };
+    }
 
     div3? >> "Fizz";
     div5? >> "Buzz";
