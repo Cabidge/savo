@@ -176,6 +176,9 @@ impl<'ctx> Compiler<'ctx> {
 
         // Compile statements
         let block_entry = self.ctx.append_basic_block(func, "block.entry");
+        builder.build_unconditional_branch(block_entry);
+        builder.position_at_end(block_entry);
+
         let fn_ctx = FuncContext {
             builder,
             locals,
