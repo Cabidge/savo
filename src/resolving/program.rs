@@ -175,6 +175,7 @@ pub enum Op {
     Sub,
     Mul,
     Div,
+    Mod,
     
     // Comparison
     EQ,
@@ -208,6 +209,7 @@ impl TryFrom<&TokenKind> for Op {
             TokenKind::Sub => Op::Sub,
             TokenKind::Mul => Op::Mul,
             TokenKind::Div => Op::Div,
+            TokenKind::Mod => Op::Mod,
             _ => return Err(()),
         };
         Ok(op)

@@ -605,7 +605,7 @@ fn prec_of(token: &TokenKind) -> Option<Precedence> {
         GT | LT |
         GE | LE => Precedence::new_l(1),
         Add | Sub => Precedence::new_l(2),
-        Mul | Div => Precedence::new_l(3),
+        Mul | Div | Mod => Precedence::new_l(3),
         _ => return None,
     };
 

@@ -211,6 +211,7 @@ fn calculate_literal(globals: &HashMap<String, f64>, expr: &Expr) -> f64 {
                 Op::Sub => lhs - rhs,
                 Op::Mul => lhs * rhs,
                 Op::Div => lhs / rhs,
+                Op::Mod => lhs.rem_euclid(rhs),
                 Op::EQ if lhs == rhs => 1.0,
                 Op::NE if lhs != rhs => 1.0,
                 Op::GT if lhs >  rhs => 1.0,

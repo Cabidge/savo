@@ -323,6 +323,11 @@ impl<'ctx> Compiler<'ctx> {
                     Op::Sub => fn_ctx.builder.build_float_sub(lhs, rhs, "sub"),
                     Op::Mul => fn_ctx.builder.build_float_mul(lhs, rhs, "mul"),
                     Op::Div => fn_ctx.builder.build_float_div(lhs, rhs, "div"),
+                    Op::Mod => {
+                        let rem = fn_ctx.builder.build_float_rem(lhs, rhs, "rem");
+                        let offset = fn_ctx.builder.build_float_add(rem, rhs, "offset");
+                        fn_ctx.builder.build_float_rem(offset, rhs, "mod")
+                    }
                     _ => {
                         // Comparison
                         // Cast bool to double
