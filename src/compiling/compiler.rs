@@ -2,7 +2,13 @@ use inkwell::{
     context::Context,
     module::Module,
     builder::Builder,
-    values::{BasicMetadataValueEnum, FloatValue, PointerValue, FunctionValue},
+    values::{
+        BasicMetadataValueEnum,
+        FloatValue,
+        PointerValue,
+        FunctionValue,
+        InstructionOpcode,
+    },
     AddressSpace,
     basic_block::BasicBlock,
     targets::{
@@ -232,7 +238,16 @@ impl<'ctx> Compiler<'ctx> {
 
             fn_ctx.builder.position_at_end(then_block);
             self.build_stmt_uncond(&stmt.kind, fn_ctx, block_ctx);
-            fn_ctx.builder.build_unconditional_branch(end_block);
+            
+            let last_instr = fn_ctx
+                .builder
+                .get_insert_block()
+                .and_then(|block| block.get_last_instruction())
+                .unwrap();
+
+            if last_instr.get_opcode() != InstructionOpcode::Br {
+                fn_ctx.builder.build_unconditional_branch(end_block);
+            }
 
             fn_ctx.builder.position_at_end(end_block);
         } else {
