@@ -77,31 +77,33 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) {
             let name = block.borrow().get_var_name(name, &program.globals).unwrap();
             IRStmt::Set(name, initial)
         },
-        StmtKind::Set(name, value) => {
-            let value = res_expr(value);
-            let name = block.borrow().get_var_name(name, &program.globals).unwrap();
-            IRStmt::Set(name, value)
-        },
-        StmtKind::Break(value) => {
-            let value = res_expr(value);
-            match &*block.borrow() {
-                Block::Root(_) => IRStmt::Return(value),
-                Block::Sub(_) => IRStmt::Break(value),
-            }
-        },
-        StmtKind::Return(value) => {
-            let value = res_expr(value);
-            IRStmt::Return(value)
-        },
         StmtKind::Func(_, _, _) => todo!(),
-        StmtKind::Expr(expr) => IRStmt::Expr(res_expr(expr)),
-        StmtKind::Dump(expr) => IRStmt::Dump(res_expr(expr)),
-        StmtKind::DumpChar(ch) => IRStmt::DumpChar(*ch),
-        StmtKind::DumpStr(s) => {
-            s.chars().for_each(|ch| {
-                block.borrow_mut().add_stmt(IRStmt::DumpChar(ch))
-            });
-            return;
+        StmtKind::Cond(cond_stmt, _) => match cond_stmt {
+            CondStmt::Set(name, value) => {
+                let value = res_expr(value);
+                let name = block.borrow().get_var_name(name, &program.globals).unwrap();
+                IRStmt::Set(name, value)
+            },
+            CondStmt::Break(value) => {
+                let value = res_expr(value);
+                match &*block.borrow() {
+                    Block::Root(_) => IRStmt::Return(value),
+                    Block::Sub(_) => IRStmt::Break(value),
+                }
+            },
+            CondStmt::Return(value) => {
+                let value = res_expr(value);
+                IRStmt::Return(value)
+            },
+            CondStmt::Expr(expr) => IRStmt::Expr(res_expr(expr)),
+            CondStmt::Dump(expr) => IRStmt::Dump(res_expr(expr)),
+            CondStmt::DumpChar(ch) => IRStmt::DumpChar(*ch),
+            CondStmt::DumpStr(s) => {
+                s.chars().for_each(|ch| {
+                    block.borrow_mut().add_stmt(IRStmt::DumpChar(ch))
+                });
+                return;
+            }
         }
     };
 

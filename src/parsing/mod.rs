@@ -1,4 +1,4 @@
-pub use parser::{ Parser, Stmt, StmtKind, Expr, ExprKind };
+pub use parser::{ Parser, Stmt, StmtKind, CondStmt, Expr, ExprKind };
 
 mod parser;
 

@@ -18,6 +18,12 @@ pub struct Stmt {
 pub enum StmtKind {
     Var(String, Expr),
     Func(String, Vec<String>, Vec<Stmt>),
+    Cond(CondStmt, Option<Expr>),
+}
+
+// Statements that can be optionally conditional
+#[derive(Debug)]
+pub enum CondStmt {
     Set(String, Expr),
     Break(Expr),  // -> Used for "resolving" blocks
     Return(Expr), // => Used for returning from functions
@@ -179,14 +185,14 @@ impl Parser {
             if error.is_none() {
                 match self.parse_stmt() {
                     Ok(stmt) => {
-                        if let StmtKind::Return(_) = stmt.kind {
+                        if let StmtKind::Cond(CondStmt::Return(_), _) = stmt.kind {
                             self.eat_current(&TokenKind::Semicolon); // Eat optional semicolon
                             if self.current().kind != TokenKind::RBrace {
                                 error = Some(ErrorKind::ExpectBlockEndAfterReturn.raise_from(self.current()).unwrap_err());
                             }
                         } else {
                             let expect_semicolon = match &stmt.kind {
-                                StmtKind::Expr(exp) => match &*exp.kind {
+                                StmtKind::Cond(CondStmt::Expr(exp), _) => match &*exp.kind {
                                     ExprKind::If(_, _, _) => false,
                                     _ => true,
                                 }
@@ -212,17 +218,19 @@ impl Parser {
             Err(err)
         } else {
             let is_resolved = match stmts.last() {
-                Some(Stmt {kind: StmtKind::Return(_), ..}) |
-                Some(Stmt {kind: StmtKind::Break(_), ..}) => true,
+                Some(Stmt {kind: StmtKind::Cond(cond_stmt, _), ..}) => match cond_stmt {
+                    CondStmt::Return(_) | CondStmt::Break(_) => true,
+                    _ => false,
+                },
                 _ => false,
             };
 
             if !is_resolved {
                 stmts.push(Stmt {
-                    kind: StmtKind::Break(Expr {
+                    kind: CondStmt::Break(Expr {
                         kind: ExprKind::Value(f64::NAN).into(),
                         token: self.current().clone(),
-                    }),
+                    }).into(),
                     token: self.current().clone(),
                 })
             }
@@ -235,12 +243,12 @@ impl Parser {
             TokenKind::Let => self.parse_let(),
             TokenKind::RArrow => self.parse_break(),
             TokenKind::RFatArrow => self.parse_return(),
-            TokenKind::Dump => self.parse_dump(),
+            TokenKind::DRight => self.parse_dump(),
             TokenKind::Ident(_) => self.parse_ident_stmt(),
             _ => {
                 let token = self.current().clone();
                 Ok(Stmt {
-                    kind: StmtKind::Expr(self.parse_expr()?),
+                    kind: CondStmt::Expr(self.parse_expr()?).into(),
                     token,
                 })
             }
@@ -249,7 +257,7 @@ impl Parser {
 
     fn parse_dump(&mut self) -> Result<Stmt, Error> {
         let dump_token = self.current().clone();
-        if dump_token.kind != TokenKind::Dump {
+        if dump_token.kind != TokenKind::DRight {
             panic!("Cannot call parse_dump on a non-`>>` token...");
         }
 
@@ -258,21 +266,21 @@ impl Parser {
             TokenKind::Char(ch) => {
                 self.advance();
                 Stmt {
-                    kind: StmtKind::DumpChar(ch),
+                    kind: CondStmt::DumpChar(ch).into(),
                     token: dump_token,
                 }
             }
             TokenKind::Str(s) => {
                 self.advance();
                 Stmt {
-                    kind: StmtKind::DumpStr(s.clone()),
+                    kind: CondStmt::DumpStr(s.clone()).into(),
                     token: dump_token,
                 }
             }
             _ => {
                 let expr = self.parse_expr()?;
                 Stmt {
-                    kind: StmtKind::Dump(expr),
+                    kind: CondStmt::Dump(expr).into(),
                     token: dump_token,
                 }
             }
@@ -316,7 +324,6 @@ impl Parser {
             TokenKind::Value(_) => self.parse_value(),
             TokenKind::Ident(_) => self.parse_ident_expr(),
             TokenKind::Sub => self.parse_negate(),
-            TokenKind::If => self.parse_if(),
             _ => panic!("{:?}", self.current()), // TODO: Error handling
         }
     }
@@ -351,7 +358,7 @@ impl Parser {
                 self.parse_set(ident)
             },
             _ => Ok(Stmt {
-                kind: StmtKind::Expr(self.parse_ident_expr()?),
+                kind: CondStmt::Expr(self.parse_ident_expr()?).into(),
                 token: ident_token,
             })
         }
@@ -387,37 +394,8 @@ impl Parser {
         let expr = self.parse_expr()?;
 
         Ok(Stmt {
-            kind: StmtKind::Set(ident, expr),
+            kind: CondStmt::Set(ident, expr).into(),
             token: larrow_token,
-        })
-    }
-
-    fn parse_if(&mut self) -> Result<Expr, Error> {
-        let if_token = self.current().clone();
-        if if_token.kind != TokenKind::If {
-            panic!("Cannot call parse_if on a non-if token...");
-        }
-
-        self.advance();
-
-        let cond = self.parse_expr()?;
-        let then = self.parse_block()?;
-
-        let elze = if self.eat_current(&TokenKind::Else) {
-            self.parse_block()?
-        } else {
-            vec![Stmt {
-                kind: StmtKind::Break(Expr {
-                    kind: ExprKind::Value(f64::NAN).into(),
-                    token: self.current().clone(),
-                }),
-                token: self.current().clone(),
-            }]
-        };
-
-        Ok(Expr {
-            kind: ExprKind::If(cond, then, elze).into(),
-            token: if_token,
         })
     }
 
@@ -456,7 +434,7 @@ impl Parser {
         let expr = self.parse_expr()?;
 
         Ok(Stmt {
-            kind: StmtKind::Break(expr).into(),
+            kind: CondStmt::Break(expr).into(),
             token: rarrow_token,
         })
     }
@@ -472,7 +450,7 @@ impl Parser {
         let expr = self.parse_expr()?;
 
         Ok(Stmt {
-            kind: StmtKind::Return(expr).into(),
+            kind: CondStmt::Return(expr).into(),
             token: rarrow_token,
         })
     }
@@ -536,6 +514,12 @@ impl fmt::Display for Expr {
             },
             kind => kind.fmt(f),
         }
+    }
+}
+
+impl From<CondStmt> for StmtKind {
+    fn from(cond: CondStmt) -> StmtKind {
+        StmtKind::Cond(cond, None)
     }
 }
 
