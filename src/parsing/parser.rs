@@ -27,6 +27,7 @@ pub enum CondStmt {
     Set(String, Expr),
     Break(Expr),  // -> Used for "resolving" blocks
     Return(Expr), // => Used for returning from functions
+    Rewind,       // << Return to start of block
     Dump(Expr),
     DumpChar(char),
     DumpStr(String),
@@ -46,7 +47,6 @@ pub enum ExprKind {
     BinOp(Expr, Expr),
     Negate(Expr),
     Call(Vec<Expr>),
-    If(Expr, Vec<Stmt>, Vec<Stmt>),
 }
 
 #[derive(Debug)]
@@ -192,10 +192,6 @@ impl Parser {
                             }
                         } else {
                             let expect_semicolon = match &stmt.kind {
-                                StmtKind::Cond(CondStmt::Expr(exp), _) => match &*exp.kind {
-                                    ExprKind::If(_, _, _) => false,
-                                    _ => true,
-                                }
                                 StmtKind::Func(_, _, _) => false,
                                 _ => true,
                             };
@@ -241,48 +237,49 @@ impl Parser {
     fn parse_stmt(&mut self) -> Result<Stmt, Error> {
         match &self.current().kind {
             TokenKind::Let => self.parse_let(),
+            _ => self.parse_cond(None),
+        }
+    }
+
+    fn parse_cond(&mut self, condition: Option<Expr>) -> Result<Stmt, Error> {
+        let token = self.current().clone();
+        let cond_stmt = match &token.kind {
             TokenKind::RArrow => self.parse_break(),
             TokenKind::RFatArrow => self.parse_return(),
             TokenKind::DRight => self.parse_dump(),
             TokenKind::Ident(_) => self.parse_ident_stmt(),
             _ => {
                 let token = self.current().clone();
-                Ok(Stmt {
-                    kind: CondStmt::Expr(self.parse_expr()?).into(),
-                    token,
-                })
+                let expr = self.parse_expr()?;
+
+                if self.eat_current(&TokenKind::Cond) {
+                    return self.parse_cond(Some(expr));
+                }
+
+                Ok(CondStmt::Expr(expr))
             }
-        }
+        }?;
+
+        Ok(Stmt {
+            kind: StmtKind::Cond(cond_stmt, condition),
+            token,
+        })
     }
 
-    fn parse_dump(&mut self) -> Result<Stmt, Error> {
-        let dump_token = self.current().clone();
-        if dump_token.kind != TokenKind::DRight {
-            panic!("Cannot call parse_dump on a non-`>>` token...");
-        }
-
+    fn parse_dump(&mut self) -> Result<CondStmt, Error> {
         let token = self.advance().clone();
         let stmt = match token.kind {
             TokenKind::Char(ch) => {
                 self.advance();
-                Stmt {
-                    kind: CondStmt::DumpChar(ch).into(),
-                    token: dump_token,
-                }
+                CondStmt::DumpChar(ch)
             }
             TokenKind::Str(s) => {
                 self.advance();
-                Stmt {
-                    kind: CondStmt::DumpStr(s.clone()).into(),
-                    token: dump_token,
-                }
+                CondStmt::DumpStr(s.clone())
             }
             _ => {
                 let expr = self.parse_expr()?;
-                Stmt {
-                    kind: CondStmt::Dump(expr).into(),
-                    token: dump_token,
-                }
+                CondStmt::Dump(expr)
             }
         };
 
@@ -344,9 +341,8 @@ impl Parser {
         })
     }
 
-    fn parse_ident_stmt(&mut self) -> Result<Stmt, Error> {
-        let ident_token = self.current().clone();
-        let ident = if let TokenKind::Ident(id) = &ident_token.kind {
+    fn parse_ident_stmt(&mut self) -> Result<CondStmt, Error> {
+        let ident = if let TokenKind::Ident(id) = &self.current().kind {
             id.clone()
         } else {
             panic!("Cannot call parse_ident_stmt on a non-ident token...");
@@ -357,10 +353,7 @@ impl Parser {
                 self.advance();
                 self.parse_set(ident)
             },
-            _ => Ok(Stmt {
-                kind: CondStmt::Expr(self.parse_ident_expr()?).into(),
-                token: ident_token,
-            })
+            _ => Ok(CondStmt::Expr(self.parse_ident_expr()?))
         }
     }
 
@@ -383,20 +376,12 @@ impl Parser {
         }
     }
 
-    fn parse_set(&mut self, ident: String) -> Result<Stmt, Error> {
-        let larrow_token = self.current().clone();
-        if larrow_token.kind != TokenKind::LArrow {
-            panic!("Cannot call parse_set on a non-`<-` token...");
-        }
-
+    fn parse_set(&mut self, ident: String) -> Result<CondStmt, Error> {
         self.advance();
 
         let expr = self.parse_expr()?;
 
-        Ok(Stmt {
-            kind: CondStmt::Set(ident, expr).into(),
-            token: larrow_token,
-        })
+        Ok(CondStmt::Set(ident, expr))
     }
 
     fn parse_call(&mut self, token: Token) -> Result<Expr, Error> {
@@ -423,36 +408,20 @@ impl Parser {
         })
     }
 
-    fn parse_break(&mut self) -> Result<Stmt, Error> {
-        let rarrow_token = self.current().clone();
-        if rarrow_token.kind != TokenKind::RArrow {
-            panic!("Cannot call parse_break on a non-`->` token...");
-        }
-
+    fn parse_break(&mut self) -> Result<CondStmt, Error> {
         self.advance();
 
         let expr = self.parse_expr()?;
 
-        Ok(Stmt {
-            kind: CondStmt::Break(expr).into(),
-            token: rarrow_token,
-        })
+        Ok(CondStmt::Break(expr))
     }
 
-    fn parse_return(&mut self) -> Result<Stmt, Error> {
-        let rarrow_token = self.current().clone();
-        if rarrow_token.kind != TokenKind::RFatArrow {
-            panic!("Cannot call parse_return on a non-`=>` token...");
-        }
-
+    fn parse_return(&mut self) -> Result<CondStmt, Error> {
         self.advance();
 
         let expr = self.parse_expr()?;
 
-        Ok(Stmt {
-            kind: CondStmt::Return(expr).into(),
-            token: rarrow_token,
-        })
+        Ok(CondStmt::Return(expr))
     }
 
     fn parse_negate(&mut self) -> Result<Expr, Error> {
@@ -530,7 +499,6 @@ impl fmt::Display for ExprKind {
             ExprKind::Get(name) => name.fmt(f),
             ExprKind::Negate(expr) => write!(f, "(neg {})", expr),
             ExprKind::BinOp(_, _) |
-            ExprKind::If(_, _, _) |
             ExprKind::Call(_) => unimplemented!(),
         }
     }

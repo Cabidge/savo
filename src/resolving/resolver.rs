@@ -104,6 +104,7 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) {
                 });
                 return;
             }
+            _ => todo!(),
         }
     };
 
@@ -161,13 +162,6 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IR
                 }
             };
             IRExpr::Call(fn_name, args)
-        },
-        ExprKind::If(cond, then, elze) => {
-            let cond = resolve_expr(block.clone(), program, cond);
-            let then = resolve_scope(block.clone(), program, then);
-            let elze = resolve_scope(block, program, elze);
-
-            IRExpr::If(cond.into(), then, elze)
         },
     }
 }
