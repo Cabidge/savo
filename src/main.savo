@@ -8,8 +8,8 @@ let main() {
 }
 
 let fizz_buzz(n) {
-    let div3 = divable(n, 3);
-    let div5 = divable(n, 5);
+    let div3 = n % 3 = 0;
+    let div5 = n % 5 = 0;
     let neither = not(div3) * not(div5);
 
     neither? -> {
@@ -24,11 +24,4 @@ let fizz_buzz(n) {
 let not(b) {
     b? -> 0;
     -> 1;
-}
-
-let divable(n, div) {
-    n = 0? -> 1;
-    n < 0? -> 0;
-
-    -> divable(n - div, div);
 }
