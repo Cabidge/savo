@@ -47,7 +47,7 @@ pub enum ExprKind {
     BinOp(Expr, Expr),
     Negate(Expr),
     Call(Vec<Expr>),
-    Block(Vec<Expr>),
+    Block(Vec<Stmt>),
 }
 
 #[derive(Debug)]

@@ -332,6 +332,7 @@ impl<'ctx> Compiler<'ctx> {
                     .unwrap()
                     .into_float_value()
             },
+            _ => todo!(),
         }
     }
 }

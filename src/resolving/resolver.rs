@@ -190,7 +190,10 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IR
             };
             IRExpr::Call(fn_name, args)
         },
-        _ => todo!(),
+        ExprKind::Block(stmts) => {
+            let stmts = resolve_scope(block, program, &stmts[..]);
+            IRExpr::Block(stmts)
+        },
     }
 }
 

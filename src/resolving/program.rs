@@ -141,13 +141,13 @@ impl SubBlock {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CondStmt {
     pub kind: StmtKind,
     pub cond: Option<Expr>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StmtKind {
     Set(String, Expr),
     Break(Expr),
@@ -165,6 +165,7 @@ pub enum Expr {
     Get(String),
     BinOp(Op, Box<Expr>, Box<Expr>),
     Call(String, Vec<Expr>),
+    Block(Vec<CondStmt>),
 }
 
 #[derive(Debug, Clone)]
