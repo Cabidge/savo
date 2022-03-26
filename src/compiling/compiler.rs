@@ -34,6 +34,11 @@ struct FuncContext<'ctx> {
     func: FunctionValue<'ctx>,
 }
 
+struct BlockContext<'ctx> {
+    entry: BasicBlock<'ctx>,
+    exit: Option<(BasicBlock<'ctx>, PointerValue<'ctx>)>,
+}
+
 impl<'ctx> Compiler<'ctx> {
     pub fn new(ctx: &'ctx Context) -> Self {
         let module = ctx.create_module("module");
@@ -170,14 +175,20 @@ impl<'ctx> Compiler<'ctx> {
         }
 
         // Compile statements
+        let block_entry = self.ctx.append_basic_block(func, "block.entry");
         let fn_ctx = FuncContext {
             builder,
             locals,
             func,
         };
 
+        let block_ctx = BlockContext {
+            entry: block_entry,
+            exit: None,
+        };
+
         for stmt in block.stmts.iter() {
-            self.build_stmt(stmt, &fn_ctx);
+            self.build_stmt(stmt, &fn_ctx, &block_ctx);
         }
     }
 
@@ -191,14 +202,44 @@ impl<'ctx> Compiler<'ctx> {
         })
     }
 
-    fn build_stmt(&self, stmt: &Stmt, fn_ctx: &FuncContext<'ctx>) {
-        match &stmt.kind {
+    fn build_stmt(&self, stmt: &Stmt, fn_ctx: &FuncContext<'ctx>, block_ctx: &BlockContext<'ctx>) {
+        if let Some(cond) = &stmt.cond {
+            let bool_type = self.ctx.bool_type();
+            let cond = self.build_expr(&cond, fn_ctx);
+            let cond = fn_ctx.builder.build_float_to_unsigned_int(cond, bool_type, "double2bool");
+
+            let then_block = self.ctx.append_basic_block(fn_ctx.func, "cond.then");
+            let end_block = self.ctx.append_basic_block(fn_ctx.func, "cond.end");
+
+            fn_ctx.builder.build_conditional_branch(cond, then_block, end_block);
+
+            fn_ctx.builder.position_at_end(then_block);
+            self.build_stmt_uncond(&stmt.kind, fn_ctx, block_ctx);
+            fn_ctx.builder.build_unconditional_branch(end_block);
+
+            fn_ctx.builder.position_at_end(end_block);
+        } else {
+            self.build_stmt_uncond(&stmt.kind, fn_ctx, block_ctx);
+        }
+    }
+
+    fn build_stmt_uncond(&self, stmt_kind: &StmtKind, fn_ctx: &FuncContext<'ctx>, block_ctx: &BlockContext<'ctx>) {
+        match stmt_kind {
             StmtKind::Set(name, expr) => {
                 let ptr = self.get_var_ptr(name, Some(&fn_ctx.locals)).unwrap();
                 let value = self.build_expr(expr, fn_ctx);
                 fn_ctx.builder.build_store(ptr, value);
             },
-            StmtKind::Break(_) => unimplemented!(),
+            StmtKind::Break(expr) => {
+                let value = self.build_expr(expr, fn_ctx);
+
+                if let Some((exit_block, exit_res_ptr)) = block_ctx.exit {
+                    fn_ctx.builder.build_store(exit_res_ptr, value);
+                    fn_ctx.builder.build_unconditional_branch(exit_block);
+                } else {
+                    fn_ctx.builder.build_return(Some(&value));
+                }
+            },
             StmtKind::Return(expr) => {
                 let value = self.build_expr(expr, fn_ctx);
                 fn_ctx.builder.build_return(Some(&value));
@@ -286,26 +327,6 @@ impl<'ctx> Compiler<'ctx> {
                     .left()
                     .unwrap()
                     .into_float_value()
-            },
-        }
-    }
-
-    fn build_scope(&self, stmts: &Vec<Stmt>, fn_ctx: &FuncContext<'ctx>, branch_target: Option<BasicBlock<'ctx>>) -> FloatValue<'ctx> {
-        for stmt in &stmts[..stmts.len()-1] {
-            self.build_stmt(stmt, fn_ctx);
-        }
-
-        match stmts.last().unwrap() {
-            Stmt{ kind: StmtKind::Break(val), .. } => {
-                let val = self.build_expr(val, fn_ctx);
-                if let Some(dest) = branch_target {
-                    fn_ctx.builder.build_unconditional_branch(dest);
-                }
-                val
-            },
-            stmt => {
-                self.build_stmt(stmt, fn_ctx);
-                self.ctx.f64_type().const_float(f64::NAN)
             },
         }
     }
