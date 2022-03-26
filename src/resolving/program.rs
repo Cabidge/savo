@@ -152,6 +152,7 @@ pub enum StmtKind {
     Set(String, Expr),
     Break(Expr),
     Return(Expr),
+    Rewind,
     Expr(Expr),
     Dump(Expr),
     DumpChar(char),

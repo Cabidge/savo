@@ -1,9 +1,7 @@
-let main() {
-    >> abs(-10);
-    >> abs(12);
-}
+let i = 1;
 
-let abs(n) {
-    n < 0? -> -n;
-    -> n;
+let main() {
+    >> i;
+    i <- i + 1;
+    i < 100 ? <<;
 }

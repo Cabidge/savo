@@ -257,6 +257,10 @@ impl Parser {
             TokenKind::RArrow => self.parse_break(),
             TokenKind::RFatArrow => self.parse_return(),
             TokenKind::DRight => self.parse_dump(),
+            TokenKind::DLeft => {
+                self.advance();
+                Ok(CondStmt::Rewind)
+            },
             TokenKind::Ident(_) => {
                 let stmt = self.parse_ident_stmt()?;
 

@@ -247,6 +247,7 @@ impl<'ctx> Compiler<'ctx> {
                 let value = self.build_expr(expr, fn_ctx);
                 fn_ctx.builder.build_return(Some(&value));
             },
+            StmtKind::Rewind => { fn_ctx.builder.build_unconditional_branch(block_ctx.entry); }
             StmtKind::Expr(expr) => { self.build_expr(expr, fn_ctx); },
             StmtKind::Dump(expr) => {
                 let expr = self.build_expr(expr, fn_ctx);

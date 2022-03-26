@@ -125,7 +125,7 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) {
                     });
                     return;
                 }
-                _ => todo!(),
+                CondStmt::Rewind => IRStmtKind::Rewind,
             };
 
             IRStmt {
