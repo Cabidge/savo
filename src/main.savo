@@ -12,10 +12,14 @@ let fizz_buzz(n) {
     let div5 = divable(n, 5);
     let neither = not(div3) * not(div5);
 
+    neither? {
+        >> n;
+        => 0; # Exit early
+    };
+
     div3? >> "Fizz";
     div5? >> "Buzz";
-    neither? >> n;
-    not(neither)? >> '\n';
+    >> '\n';
 }
 
 let not(b) {
