@@ -169,7 +169,7 @@ impl<'ctx> Compiler<'ctx> {
 
         builder.build_return(None);
 
-        builder.build_global_string_ptr("%g\n", ".floatfmt").as_pointer_value();
+        builder.build_global_string_ptr("%.16g\n", ".floatfmt").as_pointer_value();
         builder.build_global_string_ptr("%c", ".charfmt").as_pointer_value();
 
         unsafe { temp_fn.delete() } // I can't figure out a fucking way to do this better
