@@ -39,5 +39,5 @@ fn main() {
 
 fn default_out_name(input_file: &str) -> String {
     let words: Vec<_> = input_file.split('.').collect();
-    return format!("{}.o", words[0]);
+    return words[0].to_string();
 }
