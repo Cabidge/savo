@@ -62,7 +62,6 @@ pub enum ErrorKind {
     UnknownEscapeChar(char),
     UnmatchedSingleQuote,
     UnmatchedDoubleQuote,
-    ReservedKeyword(&'static str),
 }
 
 impl Token {
@@ -297,7 +296,7 @@ impl Lexer {
 
         match ident.as_str() {
             "let" => TokenKind::Let,
-            "printf" => TokenKind::Error(ErrorKind::ReservedKeyword("printf")),
+            "main" | "printf" => TokenKind::Ident(format!("${}", ident)),
             _ => TokenKind::Ident(ident),
         }
     }

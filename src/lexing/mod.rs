@@ -19,7 +19,6 @@ pub fn lex(src: &str) -> Result<Vec<Token>, ()> {
                     UnknownEscapeChar(ch) => format!("Unknown escape character `\\{}`", ch),
                     UnmatchedSingleQuote => "Unmatched single quote".to_string(),
                     UnmatchedDoubleQuote => "Unmatched double quote".to_string(),
-                    ReservedKeyword(kw) => format!("Reserved keyword `{}`", kw),
                 };
 
                 eprintln!("Error: {} at {}:{}", msg, token.line, token.col);

@@ -25,15 +25,7 @@ pub fn resolve_stmts(stmts: &[Stmt]) -> Program {
             },
             StmtKind::Func(name, params, body) => {
                 let block = resolve_func(&program, params, body);
-
-                let name = {
-                    if name == "main" {
-                        "$main".to_string()
-                    } else {
-                        name.to_string()
-                    }
-                };
-                program.funcs.insert(name, block);
+                program.funcs.insert(name.to_string(), block);
             },
             _ => unimplemented!(),
         }
@@ -180,14 +172,7 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IR
                 .map(|arg| resolve_expr(block.clone(), program, arg))
                 .collect();
 
-            let fn_name = {
-                let name = expr.token.get_ident().unwrap();
-                if name.as_str() == "main" {
-                    "$main".to_string()
-                } else {
-                    name
-                }
-            };
+            let fn_name = expr.token.get_ident().unwrap();
             IRExpr::Call(fn_name, args)
         },
         ExprKind::Block(stmts) => {
