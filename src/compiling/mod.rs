@@ -1,8 +1,6 @@
 mod compiler;
 
-use inkwell::{
-    context::Context,
-};
+use inkwell::context::Context;
 
 use compiler::Compiler;
 

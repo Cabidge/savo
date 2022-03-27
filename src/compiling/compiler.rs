@@ -24,6 +24,8 @@ use inkwell::{
 };
 
 use std::collections::HashMap;
+use std::process;
+use std::fs;
 
 use crate::resolving::{ Program, BlockRoot, CondStmt as Stmt, StmtKind, Expr, Op };
 
@@ -104,10 +106,20 @@ impl<'ctx> Compiler<'ctx> {
             )
             .ok_or_else(|| "Unable to create target machine.".to_string()).unwrap();
 
-        // Compile
+        // Compile to .o file
         target_machine
-            .write_to_file(&self.module, FileType::Object, out.as_ref())
+            .write_to_file(&self.module, FileType::Object, ".savo.o".as_ref())
             .map_err(|e| format!("{:?}", e)).unwrap();
+
+        process::Command::new("clang")
+            .arg(".savo.o")
+            .arg("-lm")
+            .arg("-o")
+            .arg(out)
+            .status()
+            .unwrap();
+
+        fs::remove_file(".savo.o").unwrap();
     }
 
     fn build_main(&self) {
