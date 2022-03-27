@@ -1,6 +1,7 @@
 #![feature(never_type)]
 
-//use std::process;
+use clap::{Command, Arg};
+
 use std::fs;
 
 mod lexing;
@@ -9,36 +10,34 @@ mod resolving;
 mod compiling;
 
 fn main() {
-    let source = fs::read_to_string("src/main.savo").unwrap();
+    let m = Command::new("savoc")
+        .arg(
+            Arg::new("INPUT")
+                .help("source savo file")
+                .required(true)
+                .index(1)
+        )
+        .arg(
+            Arg::new("output")
+                .short('o')
+                .long("output")
+                .takes_value(true)
+                .value_name("FILE")
+                .help("output filename")
+        )
+        .get_matches();
 
-    /*
-    let tokens = match lexing::lex(&source) {
-        Ok(tokens) => tokens,
-        Err(_) => process::exit(1),
-    };
+    let source_file = m.value_of("INPUT").unwrap();
+    let source = fs::read_to_string(source_file).expect("Input file not found...");
 
-    /*
-    for tok in tokens.iter() {
-        print!("{}", tok.kind);
-    }
-    println!("");
-    */
+    let output_file = m.value_of("output")
+        .map(str::to_string)
+        .unwrap_or(default_out_name(source_file));
 
-    let ast_root = match parsing::parse_tokens(tokens) {
-        Ok(root) => root,
-        Err(_) => process::exit(1),
-    };
+    compiling::compile(&source, &output_file);
+}
 
-    /*
-    for expr in ast_root.iter() {
-        println!("{}", expr);
-    }
-    */
-
-    let program = resolving::resolve_exprs(&ast_root);
-
-    println!("{}", program);
-    */
-
-    compiling::compile(&source, "src/savo.o");
+fn default_out_name(input_file: &str) -> String {
+    let words: Vec<_> = input_file.rsplit('.').collect();
+    return format!("{}.o", words[0]);
 }
