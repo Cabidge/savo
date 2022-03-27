@@ -110,9 +110,10 @@ impl<'ctx> Compiler<'ctx> {
         target_machine
             .write_to_file(&self.module, FileType::Object, ".savo.o".as_ref())
             .map_err(|e| format!("{:?}", e)).unwrap();
-
-        process::Command::new("clang")
+        
+        process::Command::new("cc")
             .arg(".savo.o")
+            .arg("-no-pie")
             .arg("-lm")
             .arg("-o")
             .arg(out)
