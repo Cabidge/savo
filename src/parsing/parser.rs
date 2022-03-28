@@ -70,6 +70,7 @@ pub enum ErrorKind {
     ExpectSemicolonAfterStmt,
     StmtAfterTerminator,
     UnexpectedToken,
+    UnmatchedParen,
 }
 
 impl Parser {
@@ -358,6 +359,7 @@ impl Parser {
             TokenKind::Sub => self.parse_negate(),
             TokenKind::Bang => self.parse_not(),
             TokenKind::LBrace => self.parse_block_expr(),
+            TokenKind::LParen => self.parse_group(),
             _ => ErrorKind::UnexpectedToken.raise_from(self.current())?,
         }
     }
@@ -488,6 +490,17 @@ impl Parser {
             kind: ExprKind::Not(expr).into(),
             token: bang_token,
         })
+    }
+
+    fn parse_group(&mut self) -> Result<Expr, Error> {
+        self.advance();
+        let expr = self.parse_expr()?;
+
+        if !self.eat_current(&TokenKind::RParen) {
+            ErrorKind::UnmatchedParen.raise_from(self.current())?;
+        }
+
+        Ok(expr)
     }
 
     fn get_token(&self, index: usize) -> &Token {
