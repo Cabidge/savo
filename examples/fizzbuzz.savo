@@ -1,0 +1,27 @@
+let main() {
+    let i = 1;
+    {
+        fizz_buzz(i);
+        i <- i + 1;
+        i <= 100? ^^;
+    }
+}
+
+let fizz_buzz(n) {
+    let div3 = n % 3 = 0;
+    let div5 = n % 5 = 0;
+    let neither = not(div3) * not(div5);
+
+    neither? -> {
+        >> n;
+    }
+
+    div3? >> "Fizz";
+    div5? >> "Buzz";
+    >> '\n';
+}
+
+let not(b) {
+    b? -> 0;
+    -> 1;
+}

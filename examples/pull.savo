@@ -1,0 +1,12 @@
+let main() {
+    >> "Enter your name: ";
+    let ch = <<;
+    >> "Hello there, ";
+    {
+        ch = '\n'? -> 69;
+        >> ch;
+        ch <- <<;
+        ^^;
+    }
+    >> ", how are you?\n";
+}
