@@ -283,7 +283,6 @@ impl Parser {
                 }
             }
             _ => {
-                let token = self.current().clone();
                 let expr = self.parse_expr()?;
 
                 if self.eat_current(&TokenKind::Cond) {

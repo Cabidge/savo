@@ -124,7 +124,6 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     fn build_main(&self) {
-        let f64_type = self.ctx.f64_type();
         let i32_type = self.ctx.i32_type();
         let main_fn_type = i32_type.fn_type(&[], false);
         let main_fn = self.module.add_function("main", main_fn_type, None);
@@ -151,13 +150,12 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     fn build_intrinsics(&self) {
-        let f64_type = self.ctx.f64_type();
         let str_type = self.ctx.i8_type().ptr_type(AddressSpace::Generic);
         let void_type = self.ctx.void_type();
 
         // -- printf
         let printf_fn_type = void_type.fn_type(&[str_type.into()], true);
-        let printf_fn = self.module.add_function("printf", printf_fn_type, None);
+        self.module.add_function("printf", printf_fn_type, None);
 
         // Create format string
         let temp_fn_type = void_type.fn_type(&[], false);
