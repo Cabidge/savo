@@ -25,12 +25,12 @@ pub enum StmtKind {
 #[derive(Debug)]
 pub enum CondStmt {
     Set(String, Expr),
-    Break(Expr),  // -> Used for "resolving" blocks
-    Return(Expr), // => Used for returning from functions
-    Rewind,       // ^^ Return to start of block
-    Dump(Expr),
-    DumpChar(char),
-    DumpStr(String),
+    Break(Expr),     // -> Used for "resolving" blocks
+    Return(Expr),    // => Used for returning from functions
+    Rewind,          // ^^ Return to start of block
+    Dump(Expr),      // Convert value to char, defaults to null if invalid
+    DumpStr(String), // Prints string
+    DumpVal(Expr),   // Print literal value
     Expr(Expr),
 }
 
@@ -271,6 +271,7 @@ impl Parser {
             TokenKind::RArrow => self.parse_break(),
             TokenKind::RFatArrow => self.parse_return(),
             TokenKind::DRight => self.parse_dump(),
+            TokenKind::TRight => self.parse_dump_val(),
             TokenKind::DExp => {
                 self.advance();
                 Ok(CondStmt::Rewind)
@@ -305,14 +306,10 @@ impl Parser {
     fn parse_dump(&mut self) -> Result<CondStmt, Error> {
         let token = self.advance().clone();
         let stmt = match token.kind {
-            TokenKind::Char(ch) => {
-                self.advance();
-                CondStmt::DumpChar(ch)
-            }
             TokenKind::Str(s) => {
                 self.advance();
                 CondStmt::DumpStr(s.clone())
-            }
+            },
             _ => {
                 let expr = self.parse_expr()?;
                 CondStmt::Dump(expr)
@@ -320,6 +317,11 @@ impl Parser {
         };
 
         Ok(stmt)
+    }
+
+    fn parse_dump_val(&mut self) -> Result<CondStmt, Error> {
+        self.advance();
+        Ok(CondStmt::Dump(self.parse_expr()?))
     }
 
     fn parse_expr(&mut self) -> Result<Expr, Error> {
@@ -355,6 +357,7 @@ impl Parser {
     fn parse_unary(&mut self) -> Result<Expr, Error> {
         match &self.current().kind {
             TokenKind::Value(_) => self.parse_value(),
+            TokenKind::Char(ch) => self.parse_char(),
             TokenKind::Ident(_) => self.parse_ident_expr(),
             TokenKind::Sub => self.parse_negate(),
             TokenKind::Bang => self.parse_not(),
@@ -377,6 +380,22 @@ impl Parser {
         Ok(Expr {
             kind: ExprKind::Value(v).into(),
             token: value_token,
+        })
+    }
+
+    fn parse_char(&mut self) -> Result<Expr, Error> {
+        let ch_token = self.current().clone();
+
+        let ch = match ch_token.kind {
+            TokenKind::Char(ch) => ch,
+            _ => panic!("Cannot call parse_char on a non-char token"),
+        };
+
+        self.advance();
+
+        Ok(Expr {
+            kind: ExprKind::Value(ch as i8 as f64).into(),
+            token: ch_token,
         })
     }
 
