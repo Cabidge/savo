@@ -28,9 +28,9 @@ pub enum CondStmt {
     Break(Expr),     // -> Used for "resolving" blocks
     Return(Expr),    // => Used for returning from functions
     Rewind,          // ^^ Return to start of block
-    Dump(Expr),      // Convert value to char, defaults to null if invalid
-    DumpStr(String), // Prints string
-    DumpVal(Expr),   // Print literal value
+    Dump(Expr),      // >> Convert value to char, defaults to null if invalid
+    DumpStr(String), // >> Prints string
+    DumpVal(Expr),   // >>> Print literal value
     Expr(Expr),
 }
 
@@ -49,6 +49,7 @@ pub enum ExprKind {
     Not(Expr),
     Call(Vec<Expr>),
     Block(Vec<Stmt>),
+    Pull, // << Gets character from stdin
 }
 
 #[derive(Debug)]
@@ -363,6 +364,7 @@ impl Parser {
             TokenKind::Bang => self.parse_not(),
             TokenKind::LBrace => self.parse_block_expr(),
             TokenKind::LParen => self.parse_group(),
+            TokenKind::DLeft => self.parse_pull(),
             _ => ErrorKind::UnexpectedToken.raise_from(self.current())?,
         }
     }
@@ -520,6 +522,17 @@ impl Parser {
         }
 
         Ok(expr)
+    }
+
+    fn parse_pull(&mut self) -> Result<Expr, Error> {
+        let pull_token = self.current().clone();
+
+        self.advance();
+
+        Ok(Expr {
+            kind: ExprKind::Pull.into(),
+            token: pull_token,
+        })
     }
 
     fn get_token(&self, index: usize) -> &Token {
