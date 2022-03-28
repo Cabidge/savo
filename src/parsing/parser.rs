@@ -46,6 +46,7 @@ pub enum ExprKind {
     Get(String),
     BinOp(Expr, Expr),
     Negate(Expr),
+    Not(Expr),
     Call(Vec<Expr>),
     Block(Vec<Stmt>),
 }
@@ -355,6 +356,7 @@ impl Parser {
             TokenKind::Value(_) => self.parse_value(),
             TokenKind::Ident(_) => self.parse_ident_expr(),
             TokenKind::Sub => self.parse_negate(),
+            TokenKind::Bang => self.parse_not(),
             TokenKind::LBrace => self.parse_block_expr(),
             _ => ErrorKind::UnexpectedToken.raise_from(self.current())?,
         }
@@ -475,6 +477,19 @@ impl Parser {
         })
     }
 
+    fn parse_not(&mut self) -> Result<Expr, Error> {
+        let bang_token = self.current().clone();
+
+        self.advance();
+
+        let expr = self.parse_expr()?;
+
+        Ok(Expr {
+            kind: ExprKind::Not(expr).into(),
+            token: bang_token,
+        })
+    }
+
     fn get_token(&self, index: usize) -> &Token {
         self.tokens.get(index)
             .unwrap_or(&self.eof)
@@ -540,7 +555,8 @@ impl fmt::Display for ExprKind {
         match self {
             ExprKind::Value(v) => v.fmt(f),
             ExprKind::Get(name) => name.fmt(f),
-            ExprKind::Negate(expr) => write!(f, "(neg {})", expr),
+            ExprKind::Negate(expr) => write!(f, "-{}", expr),
+            ExprKind::Not(expr) => write!(f, "!{}", expr),
             ExprKind::BinOp(_, _) |
             ExprKind::Call(_) => todo!(),
             ExprKind::Block(_) => todo!(),
@@ -601,11 +617,12 @@ impl PartialOrd for Precedence {
 
 fn prec_of(token: &TokenKind) -> Option<Precedence> {
     let prec = match token {
+        And | Or => Precedence::new_l(1),
         EQ | NE |
         GT | LT |
-        GE | LE => Precedence::new_l(1),
-        Add | Sub => Precedence::new_l(2),
-        Mul | Div | Mod => Precedence::new_l(3),
+        GE | LE => Precedence::new_l(2),
+        Add | Sub => Precedence::new_l(3),
+        Mul | Div | Mod => Precedence::new_l(4),
         _ => return None,
     };
 
