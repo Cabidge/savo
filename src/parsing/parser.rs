@@ -321,7 +321,7 @@ impl Parser {
 
     fn parse_dump_val(&mut self) -> Result<CondStmt, Error> {
         self.advance();
-        Ok(CondStmt::Dump(self.parse_expr()?))
+        Ok(CondStmt::DumpVal(self.parse_expr()?))
     }
 
     fn parse_expr(&mut self) -> Result<Expr, Error> {
