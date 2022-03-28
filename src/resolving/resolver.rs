@@ -110,10 +110,15 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) {
                 CondStmt::Dump(expr) => IRStmtKind::Dump(res_expr(expr)),
                 CondStmt::DumpVal(expr) => IRStmtKind::DumpVal(res_expr(expr)),
                 CondStmt::DumpStr(s) => {
-                    let stmts = s.chars().map(|ch| IRStmt {
+                    let mut stmts = s.chars().map(|ch| IRStmt {
                         kind: IRStmtKind::Dump(IRExpr::Val(ch as i8 as f64)),
                         cond: None,
-                    }).collect();
+                    }).collect::<Vec<_>>();
+
+                    stmts.push(IRStmt {
+                        kind: IRStmtKind::Break(IRExpr::Val(f64::NAN)),
+                        cond: None,
+                    });
 
                     IRStmtKind::Expr(IRExpr::Block(stmts))
                 }
