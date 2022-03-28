@@ -4,4 +4,4 @@ run:
 	@rm ./main
 bin:
 	@cargo build --release
-	@cp target/release/savo /usr/bin/savoc
+	@sudo cp target/release/savo /usr/bin/savoc
