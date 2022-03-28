@@ -27,7 +27,7 @@ pub enum CondStmt {
     Set(String, Expr),
     Break(Expr),  // -> Used for "resolving" blocks
     Return(Expr), // => Used for returning from functions
-    Rewind,       // << Return to start of block
+    Rewind,       // ^^ Return to start of block
     Dump(Expr),
     DumpChar(char),
     DumpStr(String),
@@ -268,7 +268,7 @@ impl Parser {
             TokenKind::RArrow => self.parse_break(),
             TokenKind::RFatArrow => self.parse_return(),
             TokenKind::DRight => self.parse_dump(),
-            TokenKind::DLeft => {
+            TokenKind::DExp => {
                 self.advance();
                 Ok(CondStmt::Rewind)
             },
