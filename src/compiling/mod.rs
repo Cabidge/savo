@@ -2,13 +2,22 @@ mod compiler;
 
 use inkwell::context::Context;
 
+use std::process;
+
 use compiler::Compiler;
 
 use crate::parsing::parse;
 use crate::resolving::{ resolve_stmts, Program };
 
 pub fn compile(src: &str, out:& str) {
-    let stmts = parse(src).unwrap();
+    let stmts = match parse(src) {
+        Ok(stmts) => stmts,
+        Err(_) => {
+            eprintln!("Compilation failed because of above errors...");
+            process::exit(1);
+        }
+    };
+
     let program = resolve_stmts(&stmts);
 
     compile_program(&program, out)
