@@ -166,6 +166,7 @@ pub enum Expr {
     BinOp(Op, Box<Expr>, Box<Expr>),
     Call(String, Vec<Expr>),
     Block(Vec<CondStmt>),
+    Pull,
 }
 
 #[derive(Debug, Clone)]

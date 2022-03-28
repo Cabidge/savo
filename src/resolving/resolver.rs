@@ -223,6 +223,7 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IR
             let stmts = resolve_scope(block, program, &stmts[..]);
             IRExpr::Block(stmts)
         },
+        ExprKind::Pull => IRExpr::Pull,
     }
 }
 
