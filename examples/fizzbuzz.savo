@@ -13,7 +13,7 @@ let fizz_buzz(n) {
     let neither = not(div3) * not(div5);
 
     neither? -> {
-        >> n;
+        >>> n;
     }
 
     div3? >> "Fizz";
