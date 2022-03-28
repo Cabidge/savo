@@ -35,6 +35,9 @@ pub enum TokenKind {
     Mul, // *
     Div, // /
     Mod, // %
+    Exp, // ^
+
+    DExp, // ^^
 
     LArrow, // <-
     RArrow, // ->
@@ -183,6 +186,14 @@ impl Lexer {
 
         if self.stream.eat_current('%') {
             return TokenKind::Mod;
+        }
+
+        if self.stream.eat_current('^') {
+            if self.stream.eat_current('^') {
+                return TokenKind::DExp; // ^^
+            } else {
+                return TokenKind::Exp; // ^
+            }
         }
 
         if self.stream.eat_current('(') {
@@ -342,6 +353,9 @@ impl fmt::Display for TokenKind {
             TokenKind::Mul => write!(f, "[*]"),
             TokenKind::Div => write!(f, "[/]"),
             TokenKind::Mod => write!(f, "[%]"),
+            TokenKind::Exp => write!(f, "[^]"),
+
+            TokenKind::DExp => write!(f, "[^^]"),
 
             TokenKind::LArrow => write!(f, "[<-]"),
             TokenKind::RArrow => write!(f, "[->]"),
