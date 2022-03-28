@@ -47,7 +47,8 @@ pub enum TokenKind {
     RArrow, // ->
     RFatArrow, // =>
 
-    DRight, // >>
+    DRight, // >>  Double Right
+    TRight, // >>> Triple Right
     DLeft,  // <<
 
     Comma,     // ,
@@ -152,7 +153,11 @@ impl Lexer {
 
         if self.stream.eat_current('>') {
             return if self.stream.eat_current('>') {
-                TokenKind::DRight // >>
+                if self.stream.eat_current('>') {
+                    TokenKind::TRight // >>>
+                } else {
+                    TokenKind::DRight // >>
+                }
             } else if self.stream.eat_current('=') {
                 TokenKind::GE // >=
             } else {
