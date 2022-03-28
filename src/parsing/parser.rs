@@ -358,7 +358,7 @@ impl Parser {
     fn parse_unary(&mut self) -> Result<Expr, Error> {
         match &self.current().kind {
             TokenKind::Value(_) => self.parse_value(),
-            TokenKind::Char(ch) => self.parse_char(),
+            TokenKind::Char(_) => self.parse_char(),
             TokenKind::Ident(_) => self.parse_ident_expr(),
             TokenKind::Sub => self.parse_negate(),
             TokenKind::Bang => self.parse_not(),
