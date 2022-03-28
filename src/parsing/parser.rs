@@ -602,6 +602,7 @@ impl fmt::Display for ExprKind {
             ExprKind::Get(name) => name.fmt(f),
             ExprKind::Negate(expr) => write!(f, "-{}", expr),
             ExprKind::Not(expr) => write!(f, "!{}", expr),
+            ExprKind::Pull => write!(f, "<<"),
             ExprKind::BinOp(_, _) |
             ExprKind::Call(_) => todo!(),
             ExprKind::Block(_) => todo!(),
