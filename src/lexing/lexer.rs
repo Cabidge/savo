@@ -332,47 +332,49 @@ fn is_ident(ch: char) -> bool {
 impl fmt::Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TokenKind::Value(val)   => write!(f, "[{}]", val),
-            TokenKind::Let          => write!(f, "[let]"),
-            TokenKind::Ident(ident) => write!(f, "['{}']", ident),
+            TokenKind::Value(val)   => write!(f, "`{}`", val),
+            TokenKind::Let          => write!(f, "`let`"),
+            TokenKind::Ident(ident) => write!(f, "`{}`", ident),
 
-            TokenKind::Char(ch) => write!(f, "c'{}'", ch),
-            TokenKind::Str(s)   => write!(f, "s\"{}\"", s),
+            TokenKind::Char(ch) => write!(f, "`{:?}`", ch),
+            TokenKind::Str(s)   => write!(f, "`{:?}`", s),
 
-            TokenKind::Cond => write!(f, "[?]"),
+            TokenKind::Cond => write!(f, "`?`"),
 
-            TokenKind::EQ => write!(f, "[=]"),
-            TokenKind::LT => write!(f, "[<]"),
-            TokenKind::GT => write!(f, "[>]"),
-            TokenKind::NE => write!(f, "[<>]"),
-            TokenKind::GE => write!(f, "[>=]"),
-            TokenKind::LE => write!(f, "[<=]"),
+            TokenKind::EQ => write!(f, "`=`"),
+            TokenKind::LT => write!(f, "`<`"),
+            TokenKind::GT => write!(f, "`>`"),
+            TokenKind::NE => write!(f, "`<>`"),
+            TokenKind::GE => write!(f, "`>=`"),
+            TokenKind::LE => write!(f, "`<=`"),
 
-            TokenKind::Add => write!(f, "[+]"),
-            TokenKind::Sub => write!(f, "[-]"),
-            TokenKind::Mul => write!(f, "[*]"),
-            TokenKind::Div => write!(f, "[/]"),
-            TokenKind::Mod => write!(f, "[%]"),
-            TokenKind::Exp => write!(f, "[^]"),
+            TokenKind::Add => write!(f, "`+`"),
+            TokenKind::Sub => write!(f, "`-`"),
+            TokenKind::Mul => write!(f, "`*`"),
+            TokenKind::Div => write!(f, "`/`"),
+            TokenKind::Mod => write!(f, "`%`"),
+            TokenKind::Exp => write!(f, "`^`"),
 
-            TokenKind::DExp => write!(f, "[^^]"),
+            TokenKind::DExp => write!(f, "`^^`"),
 
-            TokenKind::LArrow => write!(f, "[<-]"),
-            TokenKind::RArrow => write!(f, "[->]"),
-            TokenKind::RFatArrow => write!(f, "[=>]"),
+            TokenKind::LArrow => write!(f, "`<-`"),
+            TokenKind::RArrow => write!(f, "`->`"),
+            TokenKind::RFatArrow => write!(f, "`=>`"),
 
-            TokenKind::DRight => write!(f, "[>>]"),
-            TokenKind::DLeft  => write!(f, "[<<]"),
+            TokenKind::DRight => write!(f, "`>>`"),
+            TokenKind::DLeft  => write!(f, "`<<`"),
 
-            TokenKind::Comma     => write!(f, "[,]"),
-            TokenKind::Semicolon => write!(f, "[;]"),
+            TokenKind::Comma     => write!(f, "`,`"),
+            TokenKind::Semicolon => write!(f, "`;`"),
 
-            TokenKind::LParen => write!(f, "[(]"),
-            TokenKind::RParen => write!(f, "[)]"),
-            TokenKind::LBrace => write!(f, "[{{]"),
-            TokenKind::RBrace => write!(f, "[}}]"),
+            TokenKind::LParen => write!(f, "`(`"),
+            TokenKind::RParen => write!(f, "`)`"),
+            TokenKind::LBrace => write!(f, "`{{`"),
+            TokenKind::RBrace => write!(f, "`}}`"),
 
-            TokenKind::EOF | TokenKind::Error(_) => unimplemented!(),
+            TokenKind::EOF => write!(f, "`EOF`"),
+            
+            TokenKind::Error(_) => unimplemented!(),
         }
     }
 }

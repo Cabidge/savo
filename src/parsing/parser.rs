@@ -52,8 +52,8 @@ pub enum ExprKind {
 
 #[derive(Debug)]
 pub struct Error {
-    kind: ErrorKind,
-    token: Token,
+    pub kind: ErrorKind,
+    pub token: Token,
 }
 
 #[derive(Debug)]
@@ -68,6 +68,7 @@ pub enum ErrorKind {
     ExpectClosingBrace,
     ExpectSemicolonAfterStmt,
     StmtAfterTerminator,
+    UnexpectedToken,
 }
 
 impl Parser {
@@ -355,7 +356,7 @@ impl Parser {
             TokenKind::Ident(_) => self.parse_ident_expr(),
             TokenKind::Sub => self.parse_negate(),
             TokenKind::LBrace => self.parse_block_expr(),
-            _ => panic!("{:?}", self.current()), // TODO: Error handling
+            _ => ErrorKind::UnexpectedToken.raise_from(self.current())?,
         }
     }
 
