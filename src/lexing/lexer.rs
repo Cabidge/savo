@@ -274,6 +274,8 @@ impl Lexer {
                 Ok('\'')
             } else if self.stream.eat_current('"') {
                 Ok('"')
+            } else if self.stream.eat_current('0') {
+                Ok('\0')
             } else {
                 Err(ErrorKind::UnknownEscapeChar(self.stream.take_current()))
             }
