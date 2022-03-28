@@ -1,7 +1,7 @@
 let nan = 0 / 0;
 
 let main() {
-    >> sqrt(69);
+    >>> sqrt(69);
 }
 
 let sqrt(n) {
