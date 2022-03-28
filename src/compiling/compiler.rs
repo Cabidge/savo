@@ -186,6 +186,35 @@ impl<'ctx> Compiler<'ctx> {
             builder.build_return(None);
         }
 
+        // -- getchar
+        let getchar_fn_type = i8_type.fn_type(&[], false);
+        let getchar_fn = self.module.add_function("getchar", getchar_fn_type, None);
+
+        // -- getfc
+        {
+            let getfc_fn_type = f64_type.fn_type(&[], false);
+            let getfc_fn = self.module.add_function("getfc", getfc_fn_type, None);
+
+            let getfc_block = self.ctx.append_basic_block(getfc_fn, "entry");
+
+            builder.position_at_end(getfc_block);
+
+            let ch = builder
+                .build_call(getchar_fn, &[], "")
+                .try_as_basic_value()
+                .left()
+                .unwrap()
+                .into_int_value();
+
+            let fl: FloatValue<'ctx> = builder.build_unsigned_int_to_float(
+                ch,
+                f64_type.into(),
+                "ch2fl",
+            );
+
+            builder.build_return(Some(&fl));
+        }
+
         // -- printf
         let printf_fn_type = void_type.fn_type(&[str_type.into()], true);
         self.module.add_function("printf", printf_fn_type, None);
