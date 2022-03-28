@@ -108,15 +108,14 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) {
                 },
                 CondStmt::Expr(expr) => IRStmtKind::Expr(res_expr(expr)),
                 CondStmt::Dump(expr) => IRStmtKind::Dump(res_expr(expr)),
-                CondStmt::DumpChar(ch) => IRStmtKind::DumpChar(*ch),
+                CondStmt::DumpVal(expr) => IRStmtKind::DumpVal(res_expr(expr)),
                 CondStmt::DumpStr(s) => {
-                    s.chars().for_each(|ch| {
-                        block.borrow_mut().add_stmt(IRStmt {
-                            kind: IRStmtKind::DumpChar(ch),
-                            cond: cond.clone(),
-                        })
-                    });
-                    return;
+                    let stmts = s.chars().map(|ch| IRStmt {
+                        kind: IRStmtKind::Dump(IRExpr::Val(ch as i8 as f64)),
+                        cond: None,
+                    }).collect();
+
+                    IRStmtKind::Expr(IRExpr::Block(stmts))
                 }
                 CondStmt::Rewind => IRStmtKind::Rewind,
             };

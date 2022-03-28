@@ -155,7 +155,7 @@ pub enum StmtKind {
     Rewind,
     Expr(Expr),
     Dump(Expr),
-    DumpChar(char),
+    DumpVal(Expr),
 }
 
 #[derive(Debug, Clone)]
