@@ -12,6 +12,7 @@ use super::program::{
     CondStmt as IRStmt,
     StmtKind as IRStmtKind
 };
+use crate::lexing::TokenKind;
 use crate::parsing::*;
 
 pub fn resolve_stmts(stmts: &[Stmt]) -> Program {
@@ -157,15 +158,54 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IR
             IRExpr::Get(name)
         },
         ExprKind::BinOp(lhs, rhs) => {
-            let op = Op::try_from(&expr.token).unwrap();
             let lhs = resolve_expr(block.clone(), program, lhs);
             let rhs = resolve_expr(block, program, rhs);
-            IRExpr::BinOp(op, lhs.into(), rhs.into())
+
+            if let Ok(op) = Op::try_from(&expr.token) {
+                IRExpr::BinOp(op, lhs.into(), rhs.into())
+            } else {
+                match &expr.token.kind {
+                    TokenKind::And => IRExpr::Block(vec![
+                        IRStmt {
+                            kind: IRStmtKind::Break(rhs),
+                            cond: Some(lhs),
+                        },
+                        IRStmt {
+                            kind: IRStmtKind::Break(IRExpr::Val(0.0)),
+                            cond: None,
+                        },
+                    ]),
+                    TokenKind::Or => IRExpr::Block(vec![
+                        IRStmt {
+                            kind: IRStmtKind::Break(IRExpr::Val(1.0)),
+                            cond: Some(lhs),
+                        },
+                        IRStmt {
+                            kind: IRStmtKind::Break(rhs),
+                            cond: None,
+                        },
+                    ]),
+                    _ => unreachable!(),
+                }
+            }
         }
         ExprKind::Negate(value) => {
             let lhs = IRExpr::Val(0.0);
             let rhs = resolve_expr(block, program, value);
             IRExpr::BinOp(Op::Sub, lhs.into(), rhs.into())
+        },
+        ExprKind::Not(value) => {
+            let value = resolve_expr(block, program, value);
+            IRExpr::Block(vec![
+                IRStmt {
+                    kind: IRStmtKind::Break(IRExpr::Val(0.0)),
+                    cond: Some(value),
+                },
+                IRStmt {
+                    kind: IRStmtKind::Break(IRExpr::Val(1.0)),
+                    cond: None,
+                },
+            ])
         },
         ExprKind::Call(args) => {
             let args: Vec<_> = args.iter()
@@ -187,7 +227,24 @@ fn calculate_literal(globals: &HashMap<String, f64>, expr: &Expr) -> f64 {
         ExprKind::Value(val) => *val,
         ExprKind::Get(name) => globals[name.as_str()],
         ExprKind::Negate(expr) => -calculate_literal(globals, &expr),
+        ExprKind::Not(expr) => if calculate_literal(globals, &expr) == 0.0 { 1.0 } else { 0.0 },
         ExprKind::BinOp(lhs, rhs) => {
+            match &expr.token.kind {
+                TokenKind::And => {
+                    if calculate_literal(globals, &lhs) == 0.0 {
+                        return 0.0;
+                    }
+                    return calculate_literal(globals, &rhs);
+                },
+                TokenKind::Or => {
+                    if calculate_literal(globals, &lhs) == 1.0 {
+                        return 1.0;
+                    }
+                    return calculate_literal(globals, &rhs);
+                },
+                _ => (),
+            }
+
             let lhs = calculate_literal(globals, &lhs);
             let rhs = calculate_literal(globals, &rhs);
 
