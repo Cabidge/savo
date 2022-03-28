@@ -387,6 +387,7 @@ impl fmt::Display for TokenKind {
             TokenKind::RFatArrow => write!(f, "`=>`"),
 
             TokenKind::DRight => write!(f, "`>>`"),
+            TokenKind::TRight => write!(f, "`>>>`"),
             TokenKind::DLeft  => write!(f, "`<<`"),
 
             TokenKind::Comma     => write!(f, "`,`"),
