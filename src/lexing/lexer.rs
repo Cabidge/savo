@@ -30,6 +30,10 @@ pub enum TokenKind {
     GE, // >=
     LE, // <=
 
+    Bang, // !
+    And,  // &
+    Or,   // |
+
     Add, // +
     Sub, // -
     Mul, // *
@@ -154,6 +158,18 @@ impl Lexer {
             } else {
                 TokenKind::GT // >
             };
+        }
+
+        if self.stream.eat_current('!') {
+            return TokenKind::Bang; // !
+        }
+
+        if self.stream.eat_current('&') {
+            return TokenKind::And; // &
+        }
+
+        if self.stream.eat_current('|') {
+            return TokenKind::Or; // |
         }
 
         if self.stream.eat_current(',') {
@@ -347,6 +363,10 @@ impl fmt::Display for TokenKind {
             TokenKind::NE => write!(f, "`<>`"),
             TokenKind::GE => write!(f, "`>=`"),
             TokenKind::LE => write!(f, "`<=`"),
+
+            TokenKind::Bang => write!(f, "`!`"),
+            TokenKind::And  => write!(f, "`&`"),
+            TokenKind::Or   => write!(f, "`|`"),
 
             TokenKind::Add => write!(f, "`+`"),
             TokenKind::Sub => write!(f, "`-`"),
