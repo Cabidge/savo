@@ -33,12 +33,11 @@ impl CharStream {
     pub fn advance(&mut self) -> char {
         self.index += 1;
 
-        if self.current() == '\n' {
+        self.col += 1;
+        while self.current() == '\n' {
             self.index += 1;
             self.line += 1;
             self.col = 1;
-        } else {
-            self.col += 1;
         }
 
         self.current()
