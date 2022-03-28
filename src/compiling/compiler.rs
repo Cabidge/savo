@@ -5,6 +5,7 @@ use inkwell::{
     values::{
         BasicMetadataValueEnum,
         FloatValue,
+        IntValue,
         PointerValue,
         FunctionValue,
         InstructionOpcode,
@@ -150,8 +151,40 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     fn build_intrinsics(&self) {
-        let str_type = self.ctx.i8_type().ptr_type(AddressSpace::Generic);
+        let f64_type = self.ctx.f64_type();
+        let i8_type = self.ctx.i8_type();
+        let str_type = i8_type.ptr_type(AddressSpace::Generic);
         let void_type = self.ctx.void_type();
+
+        let builder = self.ctx.create_builder();
+
+        // -- putchar
+        let putchar_fn_type = void_type.fn_type(&[i8_type.into()], false);
+        let putchar_fn = self.module.add_function("putchar", putchar_fn_type, None);
+
+        // -- putfc
+        {
+            let putfc_fn_type = void_type.fn_type(&[f64_type.into()], false);
+            let putfc_fn = self.module.add_function("putfc", putfc_fn_type, None);
+
+            let putfc_block = self.ctx.append_basic_block(putfc_fn, "entry");
+
+            builder.position_at_end(putfc_block);
+
+            let float = putfc_fn.get_first_param()
+                .unwrap()
+                .into_float_value();
+
+            let ch: IntValue<'ctx> = builder.build_float_to_unsigned_int(
+                float,
+                i8_type.into(),
+                "fl2ch",
+            );
+
+            builder.build_call(putchar_fn, &[ch.into()], "");
+
+            builder.build_return(None);
+        }
 
         // -- printf
         let printf_fn_type = void_type.fn_type(&[str_type.into()], true);
@@ -162,13 +195,11 @@ impl<'ctx> Compiler<'ctx> {
         let temp_fn = self.module.add_function("?temp?", temp_fn_type, None);
         let temp_block = self.ctx.append_basic_block(temp_fn, "entry");
 
-        let builder = self.ctx.create_builder();
         builder.position_at_end(temp_block);
 
         builder.build_return(None);
 
         builder.build_global_string_ptr("%.16g\n", ".floatfmt").as_pointer_value();
-        builder.build_global_string_ptr("%c", ".charfmt").as_pointer_value();
 
         unsafe { temp_fn.delete() } // I can't figure out a fucking way to do this better
     }
@@ -292,6 +323,12 @@ impl<'ctx> Compiler<'ctx> {
             StmtKind::Dump(expr) => {
                 let expr = self.build_expr(expr, fn_ctx);
 
+                let putfc = self.module.get_function("putfc").unwrap();
+                fn_ctx.builder.build_call(putfc, &[expr.into()], "dump");
+            },
+            StmtKind::DumpVal(expr) => {
+                let expr = self.build_expr(expr, fn_ctx);
+
                 let printf_fn = self.module.get_function("printf").unwrap();
 
                 let fmt_string = self.module
@@ -299,20 +336,7 @@ impl<'ctx> Compiler<'ctx> {
                     .unwrap()
                     .as_pointer_value();
 
-                fn_ctx.builder.build_call(printf_fn, &[fmt_string.into(), expr.into()], "dump");
-            },
-            StmtKind::DumpChar(ch) => {
-                let i8_type = self.ctx.i8_type();
-                let ch = i8_type.const_int(*ch as u64, false);
-
-                let printf_fn = self.module.get_function("printf").unwrap();
-
-                let fmt_string = self.module
-                    .get_global(".charfmt")
-                    .unwrap()
-                    .as_pointer_value();
-
-                fn_ctx.builder.build_call(printf_fn, &[fmt_string.into(), ch.into()], "dump ch");
+                fn_ctx.builder.build_call(printf_fn, &[fmt_string.into(), expr.into()], "dump val");
             },
         }
     }
