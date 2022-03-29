@@ -1,16 +1,16 @@
-pub use parser::{ Parser, Stmt, StmtKind, CondStmt, Expr, ExprKind };
+pub use parser::{ Parser, Decl, Stmt, Expr };
 use parser::ErrorKind::*;
 
 mod parser;
 
 use crate::lexing::{ self, Token };
 
-pub fn parse(src: &str) -> Result<Vec<Stmt>, ()> {
+pub fn parse(src: &str) -> Result<Vec<Decl>, ()> {
     let tokens = lexing::lex(src)?;
     parse_tokens(tokens)
 }
 
-pub fn parse_tokens(tokens: Vec<Token>) -> Result<Vec<Stmt>, ()> {
+pub fn parse_tokens(tokens: Vec<Token>) -> Result<Vec<Decl>, ()> {
     let parser = Parser::new(tokens);
 
     match parser.parse() {

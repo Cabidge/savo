@@ -7,18 +7,18 @@ use std::process;
 use compiler::Compiler;
 
 use crate::parsing::parse;
-use crate::resolving::{ resolve_stmts, Program };
+use crate::resolving::{ resolve_decls, Program };
 
 pub fn compile(src: &str, out:& str) {
-    let stmts = match parse(src) {
-        Ok(stmts) => stmts,
+    let decls = match parse(src) {
+        Ok(decls) => decls,
         Err(_) => {
             eprintln!("Compilation failed because of above errors...");
             process::exit(1);
         }
     };
 
-    let program = resolve_stmts(&stmts);
+    let program = resolve_decls(&decls);
 
     compile_program(&program, out)
 }

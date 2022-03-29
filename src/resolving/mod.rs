@@ -1,4 +1,4 @@
-pub use resolver::resolve_stmts;
+pub use resolver::resolve_decls;
 pub use program::*;
 
 mod resolver;

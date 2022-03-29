@@ -14,18 +14,20 @@ use super::program::{
 use crate::lexing::TokenKind;
 use crate::parsing::*;
 
-pub fn resolve_stmts(stmts: &[Stmt]) -> Program {
+pub fn resolve_decls(decls: &[Decl]) -> Program {
     let mut program = Program::new();
 
-    for stmt in stmts.iter() {
-        match &stmt.kind {
-            StmtKind::Var(name, expr) => {
+    for decl in decls.iter() {
+        match decl {
+            Decl::Var(tkn, expr) => {
+                let name = tkn.get_ident().expect("Var's token should be an ident");
                 let value = calculate_literal(&program.globals, &expr);
-                program.globals.insert(name.clone(), value);
+                program.globals.insert(name, value);
             },
-            StmtKind::Func(name, params, body) => {
+            Decl::Func(tkn, params, body) => {
+                let name = tkn.get_ident().expect("Func's token should be an ident");
                 let block = resolve_func(&program, params, body);
-                program.funcs.insert(name.to_string(), block);
+                program.funcs.insert(name, block);
             },
             _ => unimplemented!(),
         }
@@ -41,7 +43,7 @@ pub fn resolve_stmts(stmts: &[Stmt]) -> Program {
 fn resolve_func(
     program: &Program,
     params: &[String],
-    body: &[Stmt]
+    body: &[Decl]
 ) -> BlockRoot {
     let mut block = Block::Root(BlockRoot::new(params.len()));
 
@@ -52,8 +54,8 @@ fn resolve_func(
     }
 
     let block = Rc::new(RefCell::new(block));
-    for stmt in body.iter() {
-        resolve_stmt(block.clone(), program, stmt);
+    for decl in body.iter() {
+        resolve_decl(block.clone(), program, decl);
     }
 
     let block = Rc::try_unwrap(block)
@@ -68,67 +70,71 @@ fn resolve_func(
     }
 }
 
-fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) {
+fn resolve_decl(block: Rc<RefCell<Block>>, program: &Program, decl: &Decl) {
     let res_expr = |expr| resolve_expr(block.clone(), program, expr);
 
-    let stmt = match &stmt.kind {
-        StmtKind::Var(name, initial) => {
-            let initial = res_expr(initial);
+    let stmt = match decl {
+        Decl::Var(tkn, initial) => {
+            let initial = res_expr(&initial);
+            let name = tkn.get_ident().expect("Var's token should be an ident");
             block.borrow_mut().define(name.clone());
-            let name = block.borrow().get_var_name(name, &program.globals).unwrap();
+            let name = block.borrow().get_var_name(&name, &program.globals).unwrap();
             IRStmt::Set(name, initial)
         },
-        StmtKind::Func(_, _, _) => todo!(),
-        StmtKind::Cond(cond_stmt, cond) => {
-            let stmt = match cond_stmt {
-                CondStmt::Set(name, value) => {
-                    let value = res_expr(value);
-                    let name = block.borrow().get_var_name(name, &program.globals).unwrap();
-                    IRStmt::Set(name, value)
-                },
-                CondStmt::Break(value) => {
-                    let value = res_expr(value);
-                    match &*block.borrow() {
-                        Block::Root(_) => IRStmt::Return(value),
-                        Block::Sub(_) => IRStmt::Break(value),
-                    }
-                },
-                CondStmt::Return(value) => {
-                    let value = res_expr(value);
-                    IRStmt::Return(value)
-                },
-                CondStmt::Expr(expr) => IRStmt::Expr(res_expr(expr)),
-                CondStmt::Dump(expr) => IRStmt::Dump(res_expr(expr)),
-                CondStmt::DumpVal(expr) => IRStmt::DumpVal(res_expr(expr)),
-                CondStmt::DumpStr(s) => {
-                    let mut stmts = s.chars()
-                        .map(|ch| IRStmt::Dump(IRExpr::Val(ch as i8 as f64)))
-                        .collect::<Vec<_>>();
-
-                    stmts.push(IRStmt::Break(IRExpr::Val(f64::NAN)));
-
-                    IRStmt::Expr(IRExpr::Block(stmts))
-                }
-                CondStmt::Rewind => IRStmt::Rewind,
-            };
-
-            if let Some(cond) = cond {
-                let cond = res_expr(cond);
-                IRStmt::Cond(stmt.into(), cond)
-            } else {
-                stmt
-            }
-        }
+        Decl::Func(_, _, _) => todo!(),
+        Decl::Stmt(stmt) => resolve_stmt(block.clone(), program, &stmt),
     };
 
     block.borrow_mut().add_stmt(stmt);
 }
 
-fn resolve_scope(parent: Rc<RefCell<Block>>, program: &Program, stmts: &[Stmt]) -> Vec<IRStmt> {
+fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> IRStmt {
+    let res_expr = |expr| resolve_expr(block.clone(), program, expr);
+
+    match stmt {
+        Stmt::Cond(stmt, cond) => {
+            let cond = res_expr(&cond);
+            let stmt = resolve_stmt(block, program, &stmt);
+            IRStmt::Cond(stmt.into(), cond)
+        },
+        Stmt::Set(tkn, value) => {
+            let value = res_expr(&value);
+            let name = tkn.get_ident().expect("Set's token should be an ident");
+            let name = block.borrow().get_var_name(&name, &program.globals).unwrap();
+            IRStmt::Set(name, value)
+        },
+        Stmt::Break(value) => {
+            let value = res_expr(&value);
+            match &*block.borrow() {
+                Block::Root(_) => IRStmt::Return(value),
+                Block::Sub(_) => IRStmt::Break(value),
+            }
+        },
+        Stmt::Return(value) => {
+            let value = res_expr(&value);
+            IRStmt::Return(value)
+        },
+        Stmt::Expr(expr) => IRStmt::Expr(res_expr(&expr)),
+        Stmt::Dump(expr) => IRStmt::Dump(res_expr(&expr)),
+        Stmt::DumpVal(expr) => IRStmt::DumpVal(res_expr(&expr)),
+        Stmt::DumpStr(s) => {
+            let mut stmts = s.chars()
+                .map(|ch| IRStmt::Dump(IRExpr::Val(ch as i8 as f64)))
+                .collect::<Vec<_>>();
+
+            stmts.push(IRStmt::Break(IRExpr::Val(f64::NAN)));
+
+            IRStmt::Expr(IRExpr::Block(stmts))
+        },
+        Stmt::Rewind => IRStmt::Rewind,
+    }
+}
+
+fn resolve_scope(parent: Rc<RefCell<Block>>, program: &Program, decls: &[Decl]) -> Vec<IRStmt> {
     let block = Rc::new(RefCell::new(Block::Sub(SubBlock::from(parent))));
 
-    for stmt in stmts.iter() {
-        resolve_stmt(block.clone(), program, stmt);
+    for decl in decls.iter() {
+        resolve_decl(block.clone(), program, decl);
     }
 
     let block = Rc::try_unwrap(block)
@@ -144,20 +150,21 @@ fn resolve_scope(parent: Rc<RefCell<Block>>, program: &Program, stmts: &[Stmt]) 
 }
 
 fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IRExpr {
-    match &*expr.kind {
-        ExprKind::Value(n) => IRExpr::Val(*n),
-        ExprKind::Get(name) => {
-            let name = block.borrow().get_var_name(name, &program.globals).unwrap();
+    match expr {
+        Expr::Value(n) => IRExpr::Val(*n),
+        Expr::Get(tkn) => {
+            let name = tkn.get_ident().expect("Get's token should be an ident");
+            let name = block.borrow().get_var_name(&name, &program.globals).unwrap();
             IRExpr::Get(name)
         },
-        ExprKind::BinOp(lhs, rhs) => {
+        Expr::BinOp(tkn, lhs, rhs) => {
             let lhs = resolve_expr(block.clone(), program, lhs);
             let rhs = resolve_expr(block, program, rhs);
 
-            if let Ok(op) = Op::try_from(&expr.token) {
+            if let Ok(op) = Op::try_from(tkn) {
                 IRExpr::BinOp(op, lhs.into(), rhs.into())
             } else {
-                match &expr.token.kind {
+                match &tkn.kind {
                     TokenKind::And => IRExpr::Block(vec![
                         IRStmt::Cond(
                             IRStmt::Break(rhs).into(),
@@ -176,12 +183,12 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IR
                 }
             }
         }
-        ExprKind::Negate(value) => {
+        Expr::Negate(value) => {
             let lhs = IRExpr::Val(0.0);
             let rhs = resolve_expr(block, program, value);
             IRExpr::BinOp(Op::Sub, lhs.into(), rhs.into())
         },
-        ExprKind::Not(value) => {
+        Expr::Not(value) => {
             let value = resolve_expr(block, program, value);
             IRExpr::Block(vec![
                 IRStmt::Cond(
@@ -191,30 +198,30 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IR
                 IRStmt::Break(IRExpr::Val(1.0)),
             ])
         },
-        ExprKind::Call(args) => {
+        Expr::Call(tkn, args) => {
             let args: Vec<_> = args.iter()
                 .map(|arg| resolve_expr(block.clone(), program, arg))
                 .collect();
 
-            let fn_name = expr.token.get_ident().unwrap();
+            let fn_name = tkn.get_ident().unwrap();
             IRExpr::Call(fn_name, args)
         },
-        ExprKind::Block(stmts) => {
+        Expr::Block(stmts) => {
             let stmts = resolve_scope(block, program, &stmts[..]);
             IRExpr::Block(stmts)
         },
-        ExprKind::Pull => IRExpr::Call("getfc".to_string(), Vec::new()),
+        Expr::Pull => IRExpr::Call("getfc".to_string(), Vec::new()),
     }
 }
 
 fn calculate_literal(globals: &HashMap<String, f64>, expr: &Expr) -> f64 {
-    match &*expr.kind {
-        ExprKind::Value(val) => *val,
-        ExprKind::Get(name) => globals[name.as_str()],
-        ExprKind::Negate(expr) => -calculate_literal(globals, &expr),
-        ExprKind::Not(expr) => if calculate_literal(globals, &expr) == 0.0 { 1.0 } else { 0.0 },
-        ExprKind::BinOp(lhs, rhs) => {
-            match &expr.token.kind {
+    match expr {
+        Expr::Value(val) => *val,
+        Expr::Get(tkn) => globals[tkn.get_ident().unwrap().as_str()],
+        Expr::Negate(expr) => -calculate_literal(globals, &expr),
+        Expr::Not(expr) => if calculate_literal(globals, &expr) == 0.0 { 1.0 } else { 0.0 },
+        Expr::BinOp(tkn, lhs, rhs) => {
+            match &tkn.kind {
                 TokenKind::And => {
                     if calculate_literal(globals, &lhs) == 0.0 {
                         return 0.0;
@@ -233,7 +240,7 @@ fn calculate_literal(globals: &HashMap<String, f64>, expr: &Expr) -> f64 {
             let lhs = calculate_literal(globals, &lhs);
             let rhs = calculate_literal(globals, &rhs);
 
-            match Op::try_from(&expr.token).unwrap() {
+            match Op::try_from(tkn).unwrap() {
                 Op::Add => lhs + rhs,
                 Op::Sub => lhs - rhs,
                 Op::Mul => lhs * rhs,
