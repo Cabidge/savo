@@ -44,7 +44,7 @@ impl fmt::Display for Program {
 pub struct BlockRoot {
     pub param_count: usize,
     vars: HashMap<String, u8>,
-    pub stmts: Vec<CondStmt>,
+    pub stmts: Vec<Stmt>,
 }
 
 pub enum Block {
@@ -54,7 +54,7 @@ pub enum Block {
 
 pub struct SubBlock {
     pub parent: Rc<RefCell<Block>>,
-    pub stmts: Vec<CondStmt>,
+    pub stmts: Vec<Stmt>,
 }
 
 impl BlockRoot {
@@ -100,7 +100,7 @@ impl BlockRoot {
 }
 
 impl Block {
-    pub(super) fn add_stmt(&mut self, stmt: CondStmt) {
+    pub(super) fn add_stmt(&mut self, stmt: Stmt) {
         match self {
             Block::Root(root) => root.stmts.push(stmt),
             Block::Sub(sub) => sub.stmts.push(stmt),
@@ -142,13 +142,8 @@ impl SubBlock {
 }
 
 #[derive(Debug, Clone)]
-pub struct CondStmt {
-    pub kind: StmtKind,
-    pub cond: Option<Expr>,
-}
-
-#[derive(Debug, Clone)]
-pub enum StmtKind {
+pub enum Stmt {
+    Cond(Box<Stmt>, Expr),
     Set(String, Expr),
     Break(Expr),
     Return(Expr),
@@ -165,7 +160,7 @@ pub enum Expr {
     Get(String),
     BinOp(Op, Box<Expr>, Box<Expr>),
     Call(String, Vec<Expr>),
-    Block(Vec<CondStmt>),
+    Block(Vec<Stmt>),
 }
 
 #[derive(Debug, Clone)]
@@ -184,15 +179,6 @@ pub enum Op {
     LT,
     GE,
     LE,
-}
-
-impl From<StmtKind> for CondStmt {
-    fn from(kind: StmtKind) -> Self {
-        Self {
-            kind,
-            cond: None,
-        }
-    }
 }
 
 impl TryFrom<&TokenKind> for Op {

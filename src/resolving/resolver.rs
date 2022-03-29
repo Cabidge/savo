@@ -9,8 +9,7 @@ use super::program::{
     Block,
     Op,
     Expr as IRExpr,
-    CondStmt as IRStmt,
-    StmtKind as IRStmtKind
+    Stmt as IRStmt,
 };
 use crate::lexing::TokenKind;
 use crate::parsing::*;
@@ -49,7 +48,7 @@ fn resolve_func(
     for (i, param) in params.iter().enumerate() {
         block.define(param.clone());
         let param = block.get_var_name(param, &program.globals).unwrap();
-        block.add_stmt(IRStmtKind::Set(param, IRExpr::Param(i)).into());
+        block.add_stmt(IRStmt::Set(param, IRExpr::Param(i)).into());
     }
 
     let block = Rc::new(RefCell::new(block));
@@ -77,57 +76,47 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) {
             let initial = res_expr(initial);
             block.borrow_mut().define(name.clone());
             let name = block.borrow().get_var_name(name, &program.globals).unwrap();
-            IRStmt {
-                kind: IRStmtKind::Set(name, initial),
-                cond: None,
-            }
+            IRStmt::Set(name, initial)
         },
         StmtKind::Func(_, _, _) => todo!(),
         StmtKind::Cond(cond_stmt, cond) => {
-            let cond = match cond {
-                Some(ex) => Some(res_expr(ex)),
-                None => None,
-            };
-
-            let kind = match cond_stmt {
+            let stmt = match cond_stmt {
                 CondStmt::Set(name, value) => {
                     let value = res_expr(value);
                     let name = block.borrow().get_var_name(name, &program.globals).unwrap();
-                    IRStmtKind::Set(name, value)
+                    IRStmt::Set(name, value)
                 },
                 CondStmt::Break(value) => {
                     let value = res_expr(value);
                     match &*block.borrow() {
-                        Block::Root(_) => IRStmtKind::Return(value),
-                        Block::Sub(_) => IRStmtKind::Break(value),
+                        Block::Root(_) => IRStmt::Return(value),
+                        Block::Sub(_) => IRStmt::Break(value),
                     }
                 },
                 CondStmt::Return(value) => {
                     let value = res_expr(value);
-                    IRStmtKind::Return(value)
+                    IRStmt::Return(value)
                 },
-                CondStmt::Expr(expr) => IRStmtKind::Expr(res_expr(expr)),
-                CondStmt::Dump(expr) => IRStmtKind::Dump(res_expr(expr)),
-                CondStmt::DumpVal(expr) => IRStmtKind::DumpVal(res_expr(expr)),
+                CondStmt::Expr(expr) => IRStmt::Expr(res_expr(expr)),
+                CondStmt::Dump(expr) => IRStmt::Dump(res_expr(expr)),
+                CondStmt::DumpVal(expr) => IRStmt::DumpVal(res_expr(expr)),
                 CondStmt::DumpStr(s) => {
-                    let mut stmts = s.chars().map(|ch| IRStmt {
-                        kind: IRStmtKind::Dump(IRExpr::Val(ch as i8 as f64)),
-                        cond: None,
-                    }).collect::<Vec<_>>();
+                    let mut stmts = s.chars()
+                        .map(|ch| IRStmt::Dump(IRExpr::Val(ch as i8 as f64)))
+                        .collect::<Vec<_>>();
 
-                    stmts.push(IRStmt {
-                        kind: IRStmtKind::Break(IRExpr::Val(f64::NAN)),
-                        cond: None,
-                    });
+                    stmts.push(IRStmt::Break(IRExpr::Val(f64::NAN)));
 
-                    IRStmtKind::Expr(IRExpr::Block(stmts))
+                    IRStmt::Expr(IRExpr::Block(stmts))
                 }
-                CondStmt::Rewind => IRStmtKind::Rewind,
+                CondStmt::Rewind => IRStmt::Rewind,
             };
 
-            IRStmt {
-                kind,
-                cond,
+            if let Some(cond) = cond {
+                let cond = res_expr(cond);
+                IRStmt::Cond(stmt.into(), cond)
+            } else {
+                stmt
             }
         }
     };
@@ -170,24 +159,18 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IR
             } else {
                 match &expr.token.kind {
                     TokenKind::And => IRExpr::Block(vec![
-                        IRStmt {
-                            kind: IRStmtKind::Break(rhs),
-                            cond: Some(lhs),
-                        },
-                        IRStmt {
-                            kind: IRStmtKind::Break(IRExpr::Val(0.0)),
-                            cond: None,
-                        },
+                        IRStmt::Cond(
+                            IRStmt::Break(rhs).into(),
+                            lhs,
+                        ),
+                        IRStmt::Break(IRExpr::Val(0.0)),
                     ]),
                     TokenKind::Or => IRExpr::Block(vec![
-                        IRStmt {
-                            kind: IRStmtKind::Break(IRExpr::Val(1.0)),
-                            cond: Some(lhs),
-                        },
-                        IRStmt {
-                            kind: IRStmtKind::Break(rhs),
-                            cond: None,
-                        },
+                        IRStmt::Cond(
+                            IRStmt::Break(IRExpr::Val(1.0)).into(),
+                            lhs,
+                        ),
+                        IRStmt::Break(rhs),
                     ]),
                     _ => unreachable!(),
                 }
@@ -201,14 +184,11 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IR
         ExprKind::Not(value) => {
             let value = resolve_expr(block, program, value);
             IRExpr::Block(vec![
-                IRStmt {
-                    kind: IRStmtKind::Break(IRExpr::Val(0.0)),
-                    cond: Some(value),
-                },
-                IRStmt {
-                    kind: IRStmtKind::Break(IRExpr::Val(1.0)),
-                    cond: None,
-                },
+                IRStmt::Cond(
+                    IRStmt::Break(IRExpr::Val(0.0)).into(),
+                    value,
+                ),
+                IRStmt::Break(IRExpr::Val(1.0)),
             ])
         },
         ExprKind::Call(args) => {

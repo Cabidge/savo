@@ -28,7 +28,7 @@ use std::collections::HashMap;
 use std::process;
 use std::fs;
 
-use crate::resolving::{ Program, BlockRoot, CondStmt as Stmt, StmtKind, Expr, Op };
+use crate::resolving::{ Program, BlockRoot, Stmt, Expr, Op };
 
 pub struct Compiler<'ctx> {
     pub ctx: &'ctx Context,
@@ -297,43 +297,38 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     fn build_stmt(&self, stmt: &Stmt, fn_ctx: &FuncContext<'ctx>, block_ctx: &BlockContext<'ctx>) {
-        if let Some(cond) = &stmt.cond {
-            let bool_type = self.ctx.bool_type();
-            let cond = self.build_expr(&cond, fn_ctx);
-            let cond = fn_ctx.builder.build_float_to_unsigned_int(cond, bool_type, "double2bool");
+        match stmt {
+            Stmt::Cond(stmt, cond) => {
+                let bool_type = self.ctx.bool_type();
+                let cond = self.build_expr(&cond, fn_ctx);
+                let cond = fn_ctx.builder.build_float_to_unsigned_int(cond, bool_type, "double2bool");
 
-            let then_block = self.ctx.append_basic_block(fn_ctx.func, "cond.then");
-            let end_block = self.ctx.append_basic_block(fn_ctx.func, "cond.end");
+                let then_block = self.ctx.append_basic_block(fn_ctx.func, "cond.then");
+                let end_block = self.ctx.append_basic_block(fn_ctx.func, "cond.end");
 
-            fn_ctx.builder.build_conditional_branch(cond, then_block, end_block);
+                fn_ctx.builder.build_conditional_branch(cond, then_block, end_block);
 
-            fn_ctx.builder.position_at_end(then_block);
-            self.build_stmt_uncond(&stmt.kind, fn_ctx, block_ctx);
-            
-            let last_instr = fn_ctx
-                .builder
-                .get_insert_block()
-                .and_then(|block| block.get_last_instruction())
-                .unwrap();
+                fn_ctx.builder.position_at_end(then_block);
+                self.build_stmt(stmt, fn_ctx, block_ctx);
+                
+                let last_instr = fn_ctx
+                    .builder
+                    .get_insert_block()
+                    .and_then(|block| block.get_last_instruction())
+                    .unwrap();
 
-            if last_instr.get_opcode() != InstructionOpcode::Br {
-                fn_ctx.builder.build_unconditional_branch(end_block);
-            }
+                if last_instr.get_opcode() != InstructionOpcode::Br {
+                    fn_ctx.builder.build_unconditional_branch(end_block);
+                }
 
-            fn_ctx.builder.position_at_end(end_block);
-        } else {
-            self.build_stmt_uncond(&stmt.kind, fn_ctx, block_ctx);
-        }
-    }
-
-    fn build_stmt_uncond(&self, stmt_kind: &StmtKind, fn_ctx: &FuncContext<'ctx>, block_ctx: &BlockContext<'ctx>) {
-        match stmt_kind {
-            StmtKind::Set(name, expr) => {
+                fn_ctx.builder.position_at_end(end_block);
+            },
+            Stmt::Set(name, expr) => {
                 let ptr = self.get_var_ptr(name, Some(&fn_ctx.locals)).unwrap();
                 let value = self.build_expr(expr, fn_ctx);
                 fn_ctx.builder.build_store(ptr, value);
             },
-            StmtKind::Break(expr) => {
+            Stmt::Break(expr) => {
                 let value = self.build_expr(expr, fn_ctx);
 
                 if let Some((exit_block, exit_res_ptr)) = block_ctx.exit {
@@ -343,19 +338,19 @@ impl<'ctx> Compiler<'ctx> {
                     fn_ctx.builder.build_return(Some(&value));
                 }
             },
-            StmtKind::Return(expr) => {
+            Stmt::Return(expr) => {
                 let value = self.build_expr(expr, fn_ctx);
                 fn_ctx.builder.build_return(Some(&value));
             },
-            StmtKind::Rewind => { fn_ctx.builder.build_unconditional_branch(block_ctx.entry); }
-            StmtKind::Expr(expr) => { self.build_expr(expr, fn_ctx); },
-            StmtKind::Dump(expr) => {
+            Stmt::Rewind => { fn_ctx.builder.build_unconditional_branch(block_ctx.entry); }
+            Stmt::Expr(expr) => { self.build_expr(expr, fn_ctx); },
+            Stmt::Dump(expr) => {
                 let expr = self.build_expr(expr, fn_ctx);
 
                 let putfc = self.module.get_function("putfc").unwrap();
                 fn_ctx.builder.build_call(putfc, &[expr.into()], "dump");
             },
-            StmtKind::DumpVal(expr) => {
+            Stmt::DumpVal(expr) => {
                 let expr = self.build_expr(expr, fn_ctx);
 
                 let printf_fn = self.module.get_function("printf").unwrap();
