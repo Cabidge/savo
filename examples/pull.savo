@@ -1,4 +1,4 @@
-let main() {
+let main {
     >> "Enter your name: ";
     let ch = <<;
     >> "Hello there, ";

@@ -1,4 +1,4 @@
-let main() {
+let main {
     let i = 1;
     {
         fizz_buzz(i);

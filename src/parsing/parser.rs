@@ -159,6 +159,12 @@ impl Parser {
             return Ok(Decl::Func(ident_token, params, block));
         }
 
+        // Function with no params
+        if self.current().kind == TokenKind::LBrace {
+            let block = self.parse_block()?;
+            return Ok(Decl::Func(ident_token, Vec::new(), block));
+        }
+
         ErrorKind::ExpectParenOrEqAfterLetIdent.raise_from(self.current())?;
     }
 
