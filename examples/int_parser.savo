@@ -1,0 +1,19 @@
+let main {
+    >>> pull_int();
+}
+
+let pull_int {
+    let n = 0;
+    {
+        let ch = <<;
+        ch = '\n'? => n;
+        n <- n * 10 + char_int(ch);
+        ^^;
+    }
+}
+
+let char_int(code) {
+    code <- code - '0';
+    code < 0 | code > 9? -> 0/0;
+    -> code;
+}
