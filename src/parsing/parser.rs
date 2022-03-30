@@ -315,15 +315,35 @@ impl Parser {
     }
 
     fn parse_unary(&mut self) -> Result<Expr, Error> {
+        if self.eat_current(&TokenKind::Sub) {
+            let expr = self.parse_expr()?;
+            return Ok(Expr::Negate(expr.into()));
+        }
+
+        if self.eat_current(&TokenKind::Bang) {
+            let expr = self.parse_expr()?;
+            return Ok(Expr::Not(expr.into()));
+        }
+
+        if self.eat_current(&TokenKind::LParen) {
+            let expr = self.parse_expr()?;
+
+            if !self.eat_current(&TokenKind::RParen) {
+                ErrorKind::UnmatchedParen.raise_from(self.current())?;
+            }
+
+            return Ok(expr);
+        }
+
+        if self.eat_current(&TokenKind::DLeft) {
+            return Ok(Expr::Pull);
+        }
+
         match &self.current().kind {
             TokenKind::Value(_) => self.parse_value(),
             TokenKind::Char(_) => self.parse_char(),
             TokenKind::Ident(_) => self.parse_ident_expr(),
-            TokenKind::Sub => self.parse_negate(),
-            TokenKind::Bang => self.parse_not(),
             TokenKind::LBrace => self.parse_block_expr(),
-            TokenKind::LParen => self.parse_group(),
-            TokenKind::DLeft => self.parse_pull(),
             _ => ErrorKind::UnexpectedToken.raise_from(self.current())?,
         }
     }
@@ -406,38 +426,6 @@ impl Parser {
         let expr = self.parse_expr()?;
 
         Ok(Stmt::Return(expr.into()))
-    }
-
-    fn parse_negate(&mut self) -> Result<Expr, Error> {
-        self.advance();
-
-        let expr = self.parse_expr()?;
-
-        Ok(Expr::Negate(expr.into()))
-    }
-
-    fn parse_not(&mut self) -> Result<Expr, Error> {
-        self.advance();
-
-        let expr = self.parse_expr()?;
-
-        Ok(Expr::Not(expr.into()))
-    }
-
-    fn parse_group(&mut self) -> Result<Expr, Error> {
-        self.advance();
-        let expr = self.parse_expr()?;
-
-        if !self.eat_current(&TokenKind::RParen) {
-            ErrorKind::UnmatchedParen.raise_from(self.current())?;
-        }
-
-        Ok(expr)
-    }
-
-    fn parse_pull(&mut self) -> Result<Expr, Error> {
-        self.advance();
-        Ok(Expr::Pull)
     }
 
     // -- Token stream helper methods
