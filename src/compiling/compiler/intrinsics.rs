@@ -9,9 +9,14 @@ use inkwell::{
 };
 
 pub(super) fn build<'ctx>(ctx: &'ctx Context, module: &Module<'ctx>) {
+    build_putfc(ctx, module);
+    build_getfc(ctx, module);
+    build_printf(ctx, module);
+}
+
+fn build_putfc<'ctx>(ctx: &'ctx Context, module: &Module<'ctx>) {
     let f64_type = ctx.f64_type();
     let i8_type = ctx.i8_type();
-    let str_type = i8_type.ptr_type(AddressSpace::Generic);
     let void_type = ctx.void_type();
 
     let builder = ctx.create_builder();
@@ -21,57 +26,68 @@ pub(super) fn build<'ctx>(ctx: &'ctx Context, module: &Module<'ctx>) {
     let putchar_fn = module.add_function("putchar", putchar_fn_type, None);
 
     // -- putfc
-    {
-        let putfc_fn_type = void_type.fn_type(&[f64_type.into()], false);
-        let putfc_fn = module.add_function("putfc", putfc_fn_type, None);
+    let putfc_fn_type = void_type.fn_type(&[f64_type.into()], false);
+    let putfc_fn = module.add_function("putfc", putfc_fn_type, None);
 
-        let putfc_block = ctx.append_basic_block(putfc_fn, "entry");
+    let putfc_block = ctx.append_basic_block(putfc_fn, "entry");
 
-        builder.position_at_end(putfc_block);
+    builder.position_at_end(putfc_block);
 
-        let float = putfc_fn.get_first_param()
-            .unwrap()
-            .into_float_value();
+    let float = putfc_fn.get_first_param()
+        .unwrap()
+        .into_float_value();
 
-        let ch: IntValue<'ctx> = builder.build_float_to_unsigned_int(
-            float,
-            i8_type.into(),
-            "fl2ch",
-        );
+    let ch: IntValue<'ctx> = builder.build_float_to_unsigned_int(
+        float,
+        i8_type.into(),
+        "fl2ch",
+    );
 
-        builder.build_call(putchar_fn, &[ch.into()], "");
+    builder.build_call(putchar_fn, &[ch.into()], "");
 
-        builder.build_return(None);
-    }
+    builder.build_return(None);
+}
+
+fn build_getfc<'ctx>(ctx: &'ctx Context, module: &Module<'ctx>) {
+    let f64_type = ctx.f64_type();
+    let i8_type = ctx.i8_type();
+
+    let builder = ctx.create_builder();
 
     // -- getchar
     let getchar_fn_type = i8_type.fn_type(&[], false);
     let getchar_fn = module.add_function("getchar", getchar_fn_type, None);
 
     // -- getfc
-    {
-        let getfc_fn_type = f64_type.fn_type(&[], false);
-        let getfc_fn = module.add_function("getfc", getfc_fn_type, None);
+    let getfc_fn_type = f64_type.fn_type(&[], false);
+    let getfc_fn = module.add_function("getfc", getfc_fn_type, None);
 
-        let getfc_block = ctx.append_basic_block(getfc_fn, "entry");
+    let getfc_block = ctx.append_basic_block(getfc_fn, "entry");
 
-        builder.position_at_end(getfc_block);
+    builder.position_at_end(getfc_block);
 
-        let ch = builder
-            .build_call(getchar_fn, &[], "")
-            .try_as_basic_value()
-            .left()
-            .unwrap()
-            .into_int_value();
+    let ch = builder
+        .build_call(getchar_fn, &[], "")
+        .try_as_basic_value()
+        .left()
+        .unwrap()
+        .into_int_value();
 
-        let fl: FloatValue<'ctx> = builder.build_unsigned_int_to_float(
-            ch,
-            f64_type.into(),
-            "ch2fl",
-        );
+    let fl: FloatValue<'ctx> = builder.build_unsigned_int_to_float(
+        ch,
+        f64_type.into(),
+        "ch2fl",
+    );
 
-        builder.build_return(Some(&fl));
-    }
+    builder.build_return(Some(&fl));
+}
+
+fn build_printf<'ctx>(ctx: &'ctx Context, module: &Module<'ctx>) {
+    let i8_type = ctx.i8_type();
+    let str_type = i8_type.ptr_type(AddressSpace::Generic);
+    let void_type = ctx.void_type();
+
+    let builder = ctx.create_builder();
 
     // -- printf
     let printf_fn_type = void_type.fn_type(&[str_type.into()], true);
