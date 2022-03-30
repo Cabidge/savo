@@ -56,6 +56,8 @@ pub enum TokenKind {
 
     LParen, // (
     RParen, // )
+    LBrack, // [
+    RBrack, // ]
     LBrace, // {
     RBrace, // }
 
@@ -223,6 +225,14 @@ impl Lexer {
 
         if self.stream.eat_current(')') {
             return TokenKind::RParen;
+        }
+
+        if self.stream.eat_current('[') {
+            return TokenKind::LBrack;
+        }
+
+        if self.stream.eat_current(']') {
+            return TokenKind::RBrack;
         }
 
         if self.stream.eat_current('{') {
@@ -402,6 +412,8 @@ impl fmt::Display for TokenKind {
 
             TokenKind::LParen => write!(f, "`(`"),
             TokenKind::RParen => write!(f, "`)`"),
+            TokenKind::LBrack => write!(f, "`[`"),
+            TokenKind::RBrack => write!(f, "`]`"),
             TokenKind::LBrace => write!(f, "`{{`"),
             TokenKind::RBrace => write!(f, "`}}`"),
 
