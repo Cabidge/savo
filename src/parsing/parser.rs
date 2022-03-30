@@ -62,6 +62,19 @@ pub enum ErrorKind {
     UnmatchedParen,
 }
 
+// TODO: Maybe move this into its own module
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Precedence {
+    power: u8,
+    assoc: Associativity,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Associativity {
+    Left,
+    Right,
+}
+
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Parser {
@@ -495,18 +508,6 @@ impl ErrorKind {
             token: token.clone(),
         })
     }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct Precedence {
-    power: u8,
-    assoc: Associativity,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Associativity {
-    Left,
-    Right,
 }
 
 impl Precedence {
