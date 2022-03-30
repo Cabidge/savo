@@ -1,0 +1,42 @@
+let main {
+    # Print result as float
+    >>> pull_int();
+
+    # Rewind to start of function
+    ^^;
+}
+
+let pull_int {
+    let n = 0;
+    {
+        # Prompt user input
+        let ch = <<;
+
+        # If the character was a newline, return n
+        ch = '\n'? => n;
+
+        # If the character was a `.`, execute the following block
+        ch = '.'? {
+            let place = 0.1;
+            {
+                let ch = <<;
+                ch = '\n'? => n;
+                n <- n + place * char_int(ch);
+                place <- place / 10;
+                ^^;
+            }
+        }
+
+        # Multiply n by 10 and add the integer value of the character
+        n <- n * 10 + char_int(ch);
+
+        # Rewind to beginning of block
+        ^^;
+    }
+}
+
+let char_int(code) {
+    code <- code - '0';
+    code < 0 | code > 9? -> 0/0;
+    -> code;
+}
