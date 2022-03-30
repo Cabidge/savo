@@ -9,6 +9,62 @@ pub struct Program {
     pub funcs: HashMap<String, BlockRoot>,
 }
 
+pub struct BlockRoot {
+    pub param_count: usize,
+    vars: HashMap<String, u8>,
+    pub stmts: Vec<Stmt>,
+}
+
+pub enum Block {
+    Root(BlockRoot),
+    Sub(SubBlock),
+}
+
+pub struct SubBlock {
+    pub parent: Rc<RefCell<Block>>,
+    pub stmts: Vec<Stmt>,
+}
+
+#[derive(Debug, Clone)]
+pub enum Stmt {
+    Cond(Box<Stmt>, Expr),
+    Set(String, Expr),
+    Break(Expr),
+    Return(Expr),
+    Rewind,
+    Expr(Expr),
+    Dump(Expr),
+    DumpVal(Expr),
+}
+
+#[derive(Debug, Clone)]
+pub enum Expr {
+    Val(f64),
+    Param(usize),
+    Get(String),
+    BinOp(Op, Box<Expr>, Box<Expr>),
+    Call(String, Vec<Expr>),
+    Block(Vec<Stmt>),
+}
+
+#[derive(Debug, Clone)]
+pub enum Op {
+    // Algebraic
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    
+    // Comparison
+    EQ,
+    NE,
+    GT,
+    LT,
+    GE,
+    LE,
+}
+
 impl Program {
     pub fn new() -> Self {
         Program {
@@ -39,22 +95,6 @@ impl fmt::Display for Program {
 
         Ok(())
     }
-}
-
-pub struct BlockRoot {
-    pub param_count: usize,
-    vars: HashMap<String, u8>,
-    pub stmts: Vec<Stmt>,
-}
-
-pub enum Block {
-    Root(BlockRoot),
-    Sub(SubBlock),
-}
-
-pub struct SubBlock {
-    pub parent: Rc<RefCell<Block>>,
-    pub stmts: Vec<Stmt>,
 }
 
 impl BlockRoot {
@@ -139,46 +179,6 @@ impl SubBlock {
             .get_var_name(&format!(">{}", name), globals)
             .or_else(|| self.parent.borrow().get_var_name(name, globals))
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum Stmt {
-    Cond(Box<Stmt>, Expr),
-    Set(String, Expr),
-    Break(Expr),
-    Return(Expr),
-    Rewind,
-    Expr(Expr),
-    Dump(Expr),
-    DumpVal(Expr),
-}
-
-#[derive(Debug, Clone)]
-pub enum Expr {
-    Val(f64),
-    Param(usize),
-    Get(String),
-    BinOp(Op, Box<Expr>, Box<Expr>),
-    Call(String, Vec<Expr>),
-    Block(Vec<Stmt>),
-}
-
-#[derive(Debug, Clone)]
-pub enum Op {
-    // Algebraic
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Mod,
-    
-    // Comparison
-    EQ,
-    NE,
-    GT,
-    LT,
-    GE,
-    LE,
 }
 
 impl TryFrom<&TokenKind> for Op {
