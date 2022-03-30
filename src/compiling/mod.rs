@@ -10,17 +10,17 @@ use crate::parsing::parse;
 use crate::resolving::{ resolve_decls, Program };
 
 pub fn compile(src: &str, out:& str) {
-    let decls = match parse(src) {
-        Ok(decls) => decls,
+    let res = parse(src)
+        .and_then(|decls| resolve_decls(&decls))
+        .map(|program| compile_program(&program, out));
+    
+    match res {
+        Ok(_) => (),
         Err(_) => {
-            eprintln!("Compilation failed because of above errors...");
+            eprintln!("Compilation failed...");
             process::exit(1);
-        }
-    };
-
-    let program = resolve_decls(&decls);
-
-    compile_program(&program, out)
+        },
+    }
 }
 
 pub fn compile_program(program: &Program, out: &str) {

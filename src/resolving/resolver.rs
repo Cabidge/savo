@@ -14,8 +14,20 @@ use super::program::{
 use crate::lexing::TokenKind;
 use crate::parsing::*;
 
-pub fn resolve_decls(decls: &[Decl]) -> Program {
+enum Error {
+    UndefinedVariable {
+        name: String,
+        line: usize,
+        col: usize,
+    },
+    UndefinedMain,
+}
+
+type ResolveResult<T> = Result<T, Vec<Error>>;
+
+pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
     let mut program = Program::new();
+    let mut errors = Vec::new();
 
     for decl in decls.iter() {
         match decl {
@@ -26,26 +38,40 @@ pub fn resolve_decls(decls: &[Decl]) -> Program {
             },
             Decl::Func(tkn, params, body) => {
                 let name = tkn.get_ident().expect("Func's token should be an ident");
-                let block = resolve_func(&program, params, body);
-                program.funcs.insert(name, block);
+                match resolve_func(&program, params, body) {
+                    Ok(block) => { program.funcs.insert(name, block); },
+                    Err(mut errs) => errors.append(&mut errs),
+                }
             },
             _ => unimplemented!(),
         }
     }
 
     if !program.funcs.contains_key("$main") {
-        panic!("No main function found");
+        errors.push(Error::UndefinedMain);
     }
 
-    program
+    if errors.len() == 0 {
+        Ok(program)
+    } else {
+        for err in errors {
+            match err {
+                Error::UndefinedMain => eprintln!("Error: Required function `main` is not defined"),
+                Error::UndefinedVariable { name, line, col } =>
+                    eprintln!("Error: Undefined variable `{}` at {}:{}", name, line, col),
+            }
+        }
+        Err(())
+    }
 }
 
 fn resolve_func(
     program: &Program,
     params: &[String],
     body: &[Decl]
-) -> BlockRoot {
+) -> ResolveResult<BlockRoot> {
     let mut block = Block::Root(BlockRoot::new(params.len()));
+    let mut errors = Vec::new();
 
     for (i, param) in params.iter().enumerate() {
         block.define(param.clone());
@@ -55,7 +81,9 @@ fn resolve_func(
 
     let block = Rc::new(RefCell::new(block));
     for decl in body.iter() {
-        resolve_decl(block.clone(), program, decl);
+        if let Err(mut errs) = resolve_decl(block.clone(), program, decl) {
+            errors.append(&mut errs);
+        }
     }
 
     let block = Rc::try_unwrap(block)
@@ -63,60 +91,84 @@ fn resolve_func(
         .unwrap()
         .into_inner();
 
-    if let Block::Root(root) = block {
-        root
-    } else {
-        unreachable!()
+    match block {
+        Block::Root(root) => {
+            if errors.len() == 0 {
+                Ok(root)
+            } else {
+                Err(errors)
+            }
+        },
+        _ => unreachable!(),
     }
 }
 
-fn resolve_decl(block: Rc<RefCell<Block>>, program: &Program, decl: &Decl) {
+fn resolve_decl(block: Rc<RefCell<Block>>, program: &Program, decl: &Decl) -> ResolveResult<()> {
     let res_expr = |expr| resolve_expr(block.clone(), program, expr);
 
     let stmt = match decl {
         Decl::Var(tkn, initial) => {
-            let initial = res_expr(&initial);
+            let initial = res_expr(&initial)?;
             let name = tkn.get_ident().expect("Var's token should be an ident");
             block.borrow_mut().define(name.clone());
             let name = block.borrow().get_var_name(&name, &program.globals).unwrap();
             IRStmt::Set(name, initial)
         },
         Decl::Func(_, _, _) => todo!(),
-        Decl::Stmt(stmt) => resolve_stmt(block.clone(), program, &stmt),
+        Decl::Stmt(stmt) => resolve_stmt(block.clone(), program, &stmt)?,
     };
 
     block.borrow_mut().add_stmt(stmt);
+
+    Ok(())
 }
 
-fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> IRStmt {
+fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> ResolveResult<IRStmt> {
     let res_expr = |expr| resolve_expr(block.clone(), program, expr);
 
-    match stmt {
+    let stmt = match stmt {
         Stmt::Cond(stmt, cond) => {
-            let cond = res_expr(&cond);
-            let stmt = resolve_stmt(block, program, &stmt);
+            let cond = res_expr(&cond)?;
+            let stmt = resolve_stmt(block, program, &stmt)?;
             IRStmt::Cond(stmt.into(), cond)
         },
         Stmt::Set(tkn, value) => {
-            let value = res_expr(&value);
+            let value = res_expr(&value)?;
             let name = tkn.get_ident().expect("Set's token should be an ident");
-            let name = block.borrow().get_var_name(&name, &program.globals).unwrap();
+
+            let name_opt = block
+                .borrow()
+                .get_var_name(&name, &program.globals);
+
+            let name = match name_opt {
+                Some(name) => name,
+                None => {
+                    let errs = vec![Error::UndefinedVariable {
+                        name,
+                        line: tkn.line,
+                        col: tkn.col,
+                    }];
+
+                    return Err(errs);
+                },
+            };
+
             IRStmt::Set(name, value)
         },
         Stmt::Break(value) => {
-            let value = res_expr(&value);
+            let value = res_expr(&value)?;
             match &*block.borrow() {
                 Block::Root(_) => IRStmt::Return(value),
                 Block::Sub(_) => IRStmt::Break(value),
             }
         },
         Stmt::Return(value) => {
-            let value = res_expr(&value);
+            let value = res_expr(&value)?;
             IRStmt::Return(value)
         },
-        Stmt::Expr(expr) => IRStmt::Expr(res_expr(&expr)),
-        Stmt::Dump(expr) => IRStmt::Dump(res_expr(&expr)),
-        Stmt::DumpVal(expr) => IRStmt::DumpVal(res_expr(&expr)),
+        Stmt::Expr(expr) => IRStmt::Expr(res_expr(&expr)?),
+        Stmt::Dump(expr) => IRStmt::Dump(res_expr(&expr)?),
+        Stmt::DumpVal(expr) => IRStmt::DumpVal(res_expr(&expr)?),
         Stmt::DumpStr(s) => {
             let mut stmts = s.chars()
                 .map(|ch| IRStmt::Dump(IRExpr::Val(ch as i8 as f64)))
@@ -127,14 +179,19 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> IR
             IRStmt::Expr(IRExpr::Block(stmts))
         },
         Stmt::Rewind => IRStmt::Rewind,
-    }
+    };
+
+    Ok(stmt)
 }
 
-fn resolve_scope(parent: Rc<RefCell<Block>>, program: &Program, decls: &[Decl]) -> Vec<IRStmt> {
+fn resolve_scope(parent: Rc<RefCell<Block>>, program: &Program, decls: &[Decl]) -> ResolveResult<Vec<IRStmt>> {
     let block = Rc::new(RefCell::new(Block::Sub(SubBlock::from(parent))));
+    let mut errors = Vec::new();
 
     for decl in decls.iter() {
-        resolve_decl(block.clone(), program, decl);
+        if let Err(mut errs) = resolve_decl(block.clone(), program, decl) {
+            errors.append(&mut errs);
+        }
     }
 
     let block = Rc::try_unwrap(block)
@@ -142,24 +199,46 @@ fn resolve_scope(parent: Rc<RefCell<Block>>, program: &Program, decls: &[Decl]) 
         .unwrap()
         .into_inner();
 
-    if let Block::Sub(sub) = block {
-        sub.stmts
-    } else {
-        unreachable!()
+    match block {
+        Block::Sub(sub) => {
+            if errors.len() == 0 {
+                Ok(sub.stmts)
+            } else {
+                Err(errors)
+            }
+        },
+        _ => unreachable!(),
     }
 }
 
-fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IRExpr {
-    match expr {
+fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> ResolveResult<IRExpr> {
+    let expr = match expr {
         Expr::Value(n) => IRExpr::Val(*n),
         Expr::Get(tkn) => {
             let name = tkn.get_ident().expect("Get's token should be an ident");
-            let name = block.borrow().get_var_name(&name, &program.globals).unwrap();
+
+            let name_opt = block
+                .borrow()
+                .get_var_name(&name, &program.globals);
+
+            let name = match name_opt {
+                Some(name) => name,
+                None => {
+                    let errs = vec![Error::UndefinedVariable {
+                        name,
+                        line: tkn.line,
+                        col: tkn.col,
+                    }];
+
+                    return Err(errs);
+                }
+            };
+
             IRExpr::Get(name)
         },
         Expr::BinOp(tkn, lhs, rhs) => {
-            let lhs = resolve_expr(block.clone(), program, lhs);
-            let rhs = resolve_expr(block, program, rhs);
+            let lhs = resolve_expr(block.clone(), program, lhs)?;
+            let rhs = resolve_expr(block.clone(), program, rhs)?;
 
             if let Ok(op) = Op::try_from(tkn) {
                 IRExpr::BinOp(op, lhs.into(), rhs.into())
@@ -185,11 +264,11 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IR
         }
         Expr::Negate(value) => {
             let lhs = IRExpr::Val(0.0);
-            let rhs = resolve_expr(block, program, value);
+            let rhs = resolve_expr(block, program, value)?;
             IRExpr::BinOp(Op::Sub, lhs.into(), rhs.into())
         },
         Expr::Not(value) => {
-            let value = resolve_expr(block, program, value);
+            let value = resolve_expr(block, program, value)?;
             IRExpr::Block(vec![
                 IRStmt::Cond(
                     IRStmt::Break(IRExpr::Val(0.0)).into(),
@@ -199,19 +278,23 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> IR
             ])
         },
         Expr::Call(tkn, args) => {
-            let args: Vec<_> = args.iter()
-                .map(|arg| resolve_expr(block.clone(), program, arg))
-                .collect();
+            let mut new_args = Vec::new();
+
+            for old_arg in args.iter() {
+                new_args.push(resolve_expr(block.clone(), program, old_arg)?);
+            }
 
             let fn_name = tkn.get_ident().unwrap();
-            IRExpr::Call(fn_name, args)
+            IRExpr::Call(fn_name, new_args)
         },
         Expr::Block(stmts) => {
-            let stmts = resolve_scope(block, program, &stmts[..]);
+            let stmts = resolve_scope(block, program, &stmts[..])?;
             IRExpr::Block(stmts)
         },
         Expr::Pull => IRExpr::Call("getfc".to_string(), Vec::new()),
-    }
+    };
+
+    Ok(expr)
 }
 
 fn calculate_literal(globals: &HashMap<String, f64>, expr: &Expr) -> f64 {
