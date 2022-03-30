@@ -115,6 +115,7 @@ fn resolve_decl(block: Rc<RefCell<Block>>, program: &Program, decl: &Decl) -> Re
             IRStmt::Set(name, initial)
         },
         Decl::Func(_, _, _) => todo!(),
+        Decl::Stack(..) => todo!(),
         Decl::Stmt(stmt) => resolve_stmt(block.clone(), program, &stmt)?,
     };
 

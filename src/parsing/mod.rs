@@ -19,6 +19,7 @@ pub fn parse_tokens(tokens: Vec<Token>) -> Result<Vec<Decl>, ()> {
             for err in errs.iter() {
                 let msg = match err.kind {
                     ExpectIdentAfterLet => "Expected identifier after let keyword".to_string(),
+                    ExpectStackIdent => "Expected identifier after `[`".to_string(),
                     ExpectParenOrEqAfterLetIdent => "Expected `=` or `(` after a let-declaration".to_string(),
                     DuplicateParam => format!("Duplicate parameter `{}`", err.token.get_ident().unwrap()),
                     ExpectIdentParam => "Expected identifier in parameter list".to_string(),

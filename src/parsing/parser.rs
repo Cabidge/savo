@@ -12,6 +12,7 @@ pub struct Parser {
 pub enum Decl {
     Var(Token, Expr),
     Func(Token, Vec<String>, Vec<Decl>),
+    Stack(Token, Vec<Expr>),
     Stmt(Stmt)
 }
 
@@ -49,6 +50,7 @@ pub struct Error {
 #[derive(Debug)]
 pub enum ErrorKind {
     ExpectIdentAfterLet,
+    ExpectStackIdent,
     ExpectParenOrEqAfterLetIdent,
     DuplicateParam,
     ExpectIdentParam,
@@ -116,8 +118,21 @@ impl Parser {
         }
     }
 
+    fn parse_decl(&mut self) -> Result<Decl, Error> {
+        if self.eat_current(&TokenKind::Let) {
+            return self.parse_let();
+        }
+
+        Ok(Decl::Stmt(self.parse_stmt()?))
+    }
+
     fn parse_let(&mut self) -> Result<Decl, Error> {
-        let ident_token = self.advance().clone();
+        if self.eat_current(&TokenKind::LBrack) {
+            return self.parse_stack();
+        }
+
+        let ident_token = self.current().clone();
+
         match ident_token.kind {
             TokenKind::Ident(_) => (),
             _ => ErrorKind::ExpectIdentAfterLet.raise_from(&ident_token)?,
@@ -171,6 +186,17 @@ impl Parser {
         }
 
         ErrorKind::ExpectParenOrEqAfterLetIdent.raise_from(self.current())?;
+    }
+
+    fn parse_stack(&mut self) -> Result<Decl, Error> {
+        let ident_token = self.current().clone();
+
+        match ident_token.kind {
+            TokenKind::Ident(_) => (),
+            _ => ErrorKind::ExpectStackIdent.raise_from(&ident_token)?,
+        }
+
+        todo!()
     }
 
     fn parse_block(&mut self) -> Result<Vec<Decl>, Error> {
@@ -250,13 +276,6 @@ impl Parser {
 
     fn parse_block_expr(&mut self) -> Result<Expr, Error> {
         Ok(Expr::Block(self.parse_block()?))
-    }
-
-    fn parse_decl(&mut self) -> Result<Decl, Error> {
-        match &self.current().kind {
-            TokenKind::Let => self.parse_let(),
-            _ => Ok(Decl::Stmt(self.parse_stmt()?)),
-        }
     }
 
     fn parse_stmt(&mut self) -> Result<Stmt, Error> {
