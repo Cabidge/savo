@@ -175,32 +175,35 @@ impl Parser {
                 ErrorKind::ExpectClosingBrace.raise_from(self.current())?;
             }
 
-            if error.is_none() {
-                if has_terminated {
-                    ErrorKind::StmtAfterTerminator.raise_from(self.current())?;
-                }
-
-                match self.parse_decl() {
-                    Ok(decl) => {
-                        if !self.eat_current(&TokenKind::Semicolon) &&
-                            self.peek_previous().unwrap().kind != TokenKind::RBrace
-                        {
-                            error = Some(
-                                ErrorKind::ExpectSemicolonAfterStmt.raise_from(self.current())
-                                    .unwrap_err()
-                            );
-                        }
-
-                        if is_terminator(&decl) {
-                            has_terminated = true;
-                        }
-
-                        decls.push(decl);
-                    },
-                    Err(err) => error = Some(err),
-                }
-            } else {
+            if !error.is_none() {
                 self.advance();
+                continue;
+            }
+
+            if has_terminated {
+                ErrorKind::StmtAfterTerminator.raise_from(self.current())?;
+            }
+
+            match self.parse_decl() {
+                Ok(decl) => {
+                    if !self.eat_current(&TokenKind::Semicolon) &&
+                        self.peek_previous().unwrap().kind != TokenKind::RBrace
+                    {
+                        error = Some(
+                            Error {
+                                kind: ErrorKind::ExpectSemicolonAfterStmt,
+                                token: self.current().clone(),
+                            }
+                        );
+                    }
+
+                    if is_terminator(&decl) {
+                        has_terminated = true;
+                    }
+
+                    decls.push(decl);
+                },
+                Err(err) => error = Some(err),
             }
         }
 
