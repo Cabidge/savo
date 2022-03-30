@@ -130,25 +130,36 @@ impl Parser {
             return Ok(Decl::Var(ident_token, expr));
         }
 
-        if self.eat_current(&TokenKind::LParen) {
-            let mut params = Vec::<String>::new();
-            while !self.eat_current(&TokenKind::RParen) {
-                let param = if let TokenKind::Ident(ident) = &self.current().kind {
-                    ident.clone()
-                } else {
-                    ErrorKind::ExpectIdentParam.raise_from(self.current())?;
-                };
+        let is_func = match self.current().kind {
+            TokenKind::LParen |
+            TokenKind::LBrace => true,
+            _ => false,
+        };
 
-                if params.contains(&param) {
-                    ErrorKind::DuplicateParam.raise_from(self.current())?;
+        if is_func {
+            let params = if self.eat_current(&TokenKind::LParen) {
+                let mut params = Vec::<String>::new();
+                while !self.eat_current(&TokenKind::RParen) {
+                    let param = if let TokenKind::Ident(ident) = &self.current().kind {
+                        ident.clone()
+                    } else {
+                        ErrorKind::ExpectIdentParam.raise_from(self.current())?;
+                    };
+
+                    if params.contains(&param) {
+                        ErrorKind::DuplicateParam.raise_from(self.current())?;
+                    }
+
+                    params.push(param);
+
+                    if self.advance().kind != TokenKind::RParen && !self.eat_current(&TokenKind::Comma) {
+                        ErrorKind::ExpectCommaOrParenAfterParam.raise_from(self.current())?;
+                    }
                 }
-
-                params.push(param);
-
-                if self.advance().kind != TokenKind::RParen && !self.eat_current(&TokenKind::Comma) {
-                    ErrorKind::ExpectCommaOrParenAfterParam.raise_from(self.current())?;
-                }
-            }
+                params
+            } else {
+                Vec::new()
+            };
 
             let block = if self.current().kind == TokenKind::LBrace {
                 self.parse_block()?
@@ -157,12 +168,6 @@ impl Parser {
             };
 
             return Ok(Decl::Func(ident_token, params, block));
-        }
-
-        // Function with no params
-        if self.current().kind == TokenKind::LBrace {
-            let block = self.parse_block()?;
-            return Ok(Decl::Func(ident_token, Vec::new(), block));
         }
 
         ErrorKind::ExpectParenOrEqAfterLetIdent.raise_from(self.current())?;
