@@ -12,7 +12,7 @@ pub struct Parser {
 pub enum Decl {
     Var(Token, Expr),
     Func(Token, Vec<String>, Vec<Decl>),
-    Stack(Token, Vec<Expr>),
+    Deque(Token, Vec<Expr>),
     Stmt(Stmt)
 }
 
