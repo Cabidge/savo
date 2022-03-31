@@ -7,6 +7,7 @@ use crate::lexing::{ Token, TokenKind };
 pub struct Program {
     pub globals: HashMap<String, f64>,
     pub funcs: HashMap<String, BlockRoot>,
+    pub deques: HashMap<String, Vec<f64>>,
 }
 
 pub struct BlockRoot {
