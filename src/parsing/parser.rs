@@ -207,7 +207,7 @@ impl Parser {
                 ErrorKind::ExpectCommaOrBrackInDeque.raise_from(self.current())?;
             }
 
-            let expr = self.parse_expr();
+            let expr = self.parse_expr()?;
 
             exprs.push(expr);
         }
@@ -531,6 +531,8 @@ impl fmt::Display for Expr {
             Expr::Not(expr) => write!(f, "!{}", expr),
             Expr::Pull => write!(f, "<<"),
             Expr::Block(_) => todo!(),
+            Expr::Pop(tkn) => write!(f, "[{}!]", tkn.get_ident().unwrap()),
+            Expr::Len(tkn) => write!(f, "[{}]", tkn.get_ident().unwrap()),
         }
     }
 }

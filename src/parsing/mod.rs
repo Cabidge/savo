@@ -25,6 +25,7 @@ pub fn parse_tokens(tokens: Vec<Token>) -> Result<Vec<Decl>, ()> {
                     ExpectIdentParam => "Expected identifier in parameter list".to_string(),
                     ExpectCommaOrParenAfterParam => "Expected `,` or `(` after a parameter".to_string(),
                     ExpectCommaOrParenAfterArg => "Expected `,` or `(` after an argument".to_string(),
+                    ExpectCommaOrBrackInDeque => "Expected `,` or `]` in deque statement".to_string(),
                     ExpectBraceAfterParams => "Expected a `{` after parameter list".to_string(),
                     ExpectClosingBrace => "Unmatched `{`".to_string(),
                     ExpectSemicolonAfterStmt => "Expected `;` after statement".to_string(),

@@ -115,7 +115,7 @@ fn resolve_decl(block: Rc<RefCell<Block>>, program: &Program, decl: &Decl) -> Re
             IRStmt::Set(name, initial)
         },
         Decl::Func(_, _, _) => todo!(),
-        Decl::Stack(..) => todo!(),
+        Decl::Deque(..) => todo!(),
         Decl::Stmt(stmt) => resolve_stmt(block.clone(), program, &stmt)?,
     };
 
@@ -180,6 +180,7 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> Re
             IRStmt::Expr(IRExpr::Block(stmts))
         },
         Stmt::Rewind => IRStmt::Rewind,
+        Stmt::Push(..) => todo!(),
     };
 
     Ok(stmt)
@@ -293,6 +294,8 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
             IRExpr::Block(stmts)
         },
         Expr::Pull => IRExpr::Call("getfc".to_string(), Vec::new()),
+        Expr::Pop(_) => todo!(),
+        Expr::Len(_) => todo!(),
     };
 
     Ok(expr)

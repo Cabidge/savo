@@ -53,7 +53,7 @@ pub(super) fn build<'ctx>(ctx: &'ctx Context, module: &Module<'ctx>) {
         module.add_function("popDeque", f64_ptr_fn_type, None);
         module.add_function("popHeadDeque", f64_ptr_fn_type, None);
 
-        let push_deque_fn_type = void.fn_type(&[ptr_type.into(), f64_type.into()], false);
+        let push_deque_fn_type = void_type.fn_type(&[ptr_type.into(), f64_type.into()], false);
         module.add_function("pushDeque", push_deque_fn_type, None);
     }
 }

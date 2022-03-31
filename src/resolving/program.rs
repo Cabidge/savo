@@ -72,6 +72,7 @@ impl Program {
         Program {
             globals: HashMap::new(),
             funcs: HashMap::new(),
+            deques: HashMap::new(),
         }
     }
 }
