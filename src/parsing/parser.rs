@@ -27,6 +27,7 @@ pub enum Stmt {
     DumpStr(String),
     DumpVal(Expr),
     Expr(Expr),
+    Push(Token, Vec<Expr>),
 }
 
 #[derive(Debug)]
@@ -39,6 +40,8 @@ pub enum Expr {
     Call(Token, Vec<Expr>),
     Block(Vec<Decl>),
     Pull,
+    Pop(Token),
+    Len(Token), // Get the size of a deque
 }
 
 #[derive(Debug)]
