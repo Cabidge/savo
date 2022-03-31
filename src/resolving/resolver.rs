@@ -43,6 +43,14 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
                     Err(mut errs) => errors.append(&mut errs),
                 }
             },
+            Decl::Deque(tkn, exprs) => {
+                let name = tkn.get_ident().expect("Deque's token should be an ident");
+                let exprs = exprs
+                    .iter()
+                    .map(|expr| calculate_literal(&program.globals, expr))
+                    .collect::<Vec<_>>();
+                program.deques.insert(name, exprs);
+            },
             _ => unimplemented!(),
         }
     }
