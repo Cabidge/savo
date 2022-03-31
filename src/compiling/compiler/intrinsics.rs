@@ -1,6 +1,7 @@
 use inkwell::{
     context::Context,
     module::Module,
+    AddressSpace,
 };
 
 use std::include_bytes;
@@ -18,7 +19,6 @@ pub(super) fn write_intrinsics() -> tempfile::NamedTempFile {
 pub(super) fn build<'ctx>(ctx: &'ctx Context, module: &Module<'ctx>) {
     let f64_type = ctx.f64_type();
     let void_type = ctx.void_type();
-    let ptr_type = ctx.bool_type().ptr_type();
 
     let void_f64_fn_type = void_type.fn_type(&[f64_type.into()], false);
 
@@ -38,6 +38,8 @@ pub(super) fn build<'ctx>(ctx: &'ctx Context, module: &Module<'ctx>) {
 
     // -- Deque functions
     {
+        let ptr_type = ctx.bool_type().ptr_type(AddressSpace::Generic);
+
         let new_deque_fn_type = ptr_type.fn_type(&[], false);
         module.add_function("newDeque", new_deque_fn_type, None);
 
