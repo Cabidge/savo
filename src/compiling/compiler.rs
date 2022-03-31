@@ -27,7 +27,6 @@ use inkwell::{
 
 use std::collections::HashMap;
 use std::process;
-use std::fs;
 
 use crate::resolving::{ Program, BlockRoot, Stmt, Expr, Op };
 
@@ -108,21 +107,21 @@ impl<'ctx> Compiler<'ctx> {
             )
             .ok_or_else(|| "Unable to create target machine.".to_string()).unwrap();
 
+        let o_file = tempfile::NamedTempFile::new().expect("Error creating temp file");
+
         // Compile to .o file
         target_machine
-            .write_to_file(&self.module, FileType::Object, ".savo.o".as_ref())
+            .write_to_file(&self.module, FileType::Object, o_file.path().as_ref())
             .map_err(|e| format!("{:?}", e)).unwrap();
         
         process::Command::new("cc")
-            .arg(".savo.o")
+            .arg(o_file.path().to_str().unwrap())
             .arg("-no-pie")
             .arg("-lm")
             .arg("-o")
             .arg(out)
             .status()
             .unwrap();
-
-        fs::remove_file(".savo.o").unwrap();
     }
 
     fn build_main(&self) {
