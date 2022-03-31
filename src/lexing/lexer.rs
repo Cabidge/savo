@@ -341,10 +341,8 @@ impl Lexer {
         match ident.as_str() {
             "let" => TokenKind::Let,
             "main" |
-            "printf" |
-            "putchar" |
+            "dumpf" |
             "putfc" |
-            "getchar" |
             "getfc" => TokenKind::Ident(format!("${}", ident)),
             _ => TokenKind::Ident(ident),
         }
