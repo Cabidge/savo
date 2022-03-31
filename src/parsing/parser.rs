@@ -60,6 +60,7 @@ pub enum ErrorKind {
     ExpectCommaOrParenAfterParam,
     ExpectCommaOrParenAfterArg,
     ExpectCommaOrBrackInDeque,
+    ExpectBrackAfterDequeExpr,
     ExpectBraceAfterParams,
     ExpectClosingBrace,
     ExpectSemicolonAfterStmt,
@@ -305,6 +306,7 @@ impl Parser {
                 Ok(Stmt::Rewind)
             },
             TokenKind::Ident(_) => self.parse_ident_stmt(),
+            TokenKind::LBrack => self.parse_deque_stmt(),
             _ => Ok(Stmt::Expr(self.parse_expr()?))
         }?;
 
@@ -313,6 +315,47 @@ impl Parser {
                 Stmt::Cond(self.parse_stmt()?.into(), expr),
             _ => stmt,
         })
+    }
+
+    fn parse_deque_stmt(&mut self) -> Result<Stmt, Error> {
+        self.advance();
+
+        // TODO: Parse prefix exprs
+        // eg. [?S] - peek head
+        //     [!S] - pop head
+
+        let ident_token = self.current().clone();
+
+        match ident_token.kind {
+            TokenKind::Ident(_) => (),
+            _ => ErrorKind::ExpectStackIdent.raise_from(&ident_token)?,
+        }
+
+        if self.eat_current(&TokenKind::Bang) {
+            if !self.eat_current(&TokenKind::RBrack) {
+                ErrorKind::ExpectBrackAfterDequeExpr.raise_from(self.current())?;
+            }
+
+            return Ok(Stmt::Expr(Expr::Pop(ident_token)));
+        }
+
+        if self.eat_current(&TokenKind::RBrack) {
+            return Ok(Stmt::Expr(Expr::Len(ident_token)));
+        }
+
+        let mut exprs = Vec::new();
+
+        while !self.eat_current(&TokenKind::RBrack) {
+            if !self.eat_current(&TokenKind::Comma) {
+                ErrorKind::ExpectCommaOrBrackInDeque.raise_from(self.current())?;
+            }
+
+            let expr = self.parse_expr()?;
+
+            exprs.push(expr);
+        }
+
+        Ok(Stmt::Push(ident_token, exprs))
     }
 
     fn parse_dump(&mut self) -> Result<Stmt, Error> {
