@@ -36,6 +36,7 @@ pub enum Stmt {
     Expr(Expr),
     Dump(Expr),
     DumpVal(Expr),
+    Push(String, Expr),
 }
 
 #[derive(Debug, Clone)]
@@ -46,6 +47,8 @@ pub enum Expr {
     BinOp(Op, Box<Expr>, Box<Expr>),
     Call(String, Vec<Expr>),
     Block(Vec<Stmt>),
+    Pop(String),
+    Len(String),
 }
 
 #[derive(Debug, Clone)]

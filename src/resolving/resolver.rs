@@ -180,7 +180,27 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> Re
             IRStmt::Expr(IRExpr::Block(stmts))
         },
         Stmt::Rewind => IRStmt::Rewind,
-        Stmt::Push(..) => todo!(),
+        Stmt::Push(tkn, exprs) => {
+            let name = tkn.get_ident().expect("Push's token should be an ident");
+
+            if !program.deques.contains_key(&name) {
+                let errs = vec![Error::UndefinedVariable {
+                    name,
+                    line: tkn.line,
+                    col: tkn.col,
+                }];
+                return Err(errs);
+            }
+
+            let mut stmts = Vec::new();
+
+            for expr in exprs.iter() {
+                let expr = resolve_expr(block.clone(), program, expr)?;
+                stmts.push(IRStmt::Push(name.clone(), expr));
+            }
+
+            IRStmt::Expr(IRExpr::Block(stmts))
+        },
     };
 
     Ok(stmt)
@@ -294,8 +314,14 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
             IRExpr::Block(stmts)
         },
         Expr::Pull => IRExpr::Call("getfc".to_string(), Vec::new()),
-        Expr::Pop(_) => todo!(),
-        Expr::Len(_) => todo!(),
+        Expr::Pop(tkn) => {
+            let name = tkn.get_ident().expect("Pop's token should be an ident");
+            IRExpr::Pop(name)
+        },
+        Expr::Len(tkn) => {
+            let name = tkn.get_ident().expect("Len's token should be an ident");
+            IRExpr::Len(name)
+        },
     };
 
     Ok(expr)
