@@ -113,9 +113,12 @@ impl<'ctx> Compiler<'ctx> {
         target_machine
             .write_to_file(&self.module, FileType::Object, o_file.path().as_ref())
             .map_err(|e| format!("{:?}", e)).unwrap();
-        
+
+        let intrinsics_file = intrinsics::write_intrinsics();
+
         process::Command::new("cc")
             .arg(o_file.path().to_str().unwrap())
+            .arg(intrinsics_file.path().to_str().unwrap())
             .arg("-no-pie")
             .arg("-lm")
             .arg("-o")
@@ -270,14 +273,8 @@ impl<'ctx> Compiler<'ctx> {
             Stmt::DumpVal(expr) => {
                 let expr = self.build_expr(expr, fn_ctx);
 
-                let printf_fn = self.module.get_function("printf").unwrap();
-
-                let fmt_string = self.module
-                    .get_global(".floatfmt")
-                    .unwrap()
-                    .as_pointer_value();
-
-                fn_ctx.builder.build_call(printf_fn, &[fmt_string.into(), expr.into()], "dump val");
+                let dumpf = self.module.get_function("dumpf").unwrap();
+                fn_ctx.builder.build_call(dumpf, &[expr.into()], "dump");
             },
         }
     }
