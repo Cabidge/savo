@@ -1,11 +1,6 @@
 use inkwell::{
     context::Context,
     module::Module,
-    values::{
-        FloatValue,
-        IntValue,
-    },
-    AddressSpace,
 };
 
 use std::include_bytes;
