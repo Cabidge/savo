@@ -301,6 +301,16 @@ impl<'ctx> Compiler<'ctx> {
                         let offset = fn_ctx.builder.build_float_add(rem, rhs, "offset");
                         fn_ctx.builder.build_float_rem(offset, rhs, "mod")
                     }
+                    Op::Exp => {
+                        let pow = self.module.get_function("pow").unwrap();
+                        fn_ctx.builder
+                              .build_call(pow, &[lhs.into(), rhs.into()], "exp")
+                              .try_as_basic_value()
+                              .left()
+                              .unwrap()
+                              .into_float_value()
+
+                    }
                     _ => {
                         // Comparison
                         // Cast bool to double

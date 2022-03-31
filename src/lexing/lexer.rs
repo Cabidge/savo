@@ -343,7 +343,8 @@ impl Lexer {
             "main" |
             "dumpf" |
             "putfc" |
-            "getfc" => TokenKind::Ident(format!("${}", ident)),
+            "getfc" |
+            "pow" => TokenKind::Ident(format!("${}", ident)),
             _ => TokenKind::Ident(ident),
         }
     }

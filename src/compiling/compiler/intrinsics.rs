@@ -30,4 +30,8 @@ pub(super) fn build<'ctx>(ctx: &'ctx Context, module: &Module<'ctx>) {
     // -- dumpf
     let dumpf_fn_type = void_type.fn_type(&[f64_type.into()], false);
     module.add_function("dumpf", dumpf_fn_type, None);
+
+    // -- pow
+    let pow_fn_type = f64_type.fn_type(&[f64_type.into(), f64_type.into()], false);
+    module.add_function("pow", pow_fn_type, None);
 }
