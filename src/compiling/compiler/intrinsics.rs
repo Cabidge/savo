@@ -13,7 +13,7 @@ use std::io::Write;
 
 pub(super) fn write_intrinsics() -> tempfile::NamedTempFile {
     let mut file = tempfile::NamedTempFile::new().expect("Error creating intrinsics file");
-    let bytes = include_bytes!("../../libintrinsics.a");
+    let bytes = include_bytes!("../../intrinsics.o");
 
     file.write(bytes).expect("Error writing to intrinsics file");
 

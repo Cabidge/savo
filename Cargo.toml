@@ -9,6 +9,3 @@ edition = "2021"
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm10-0"] }
 clap = "3.1.6"
 tempfile = "3"
-
-[build-dependencies]
-cc = { version = "1.0" }
