@@ -59,6 +59,7 @@ pub enum ErrorKind {
     ExpectIdentParam,
     ExpectCommaOrParenAfterParam,
     ExpectCommaOrParenAfterArg,
+    ExpectCommaOrBrackInDeque,
     ExpectBraceAfterParams,
     ExpectClosingBrace,
     ExpectSemicolonAfterStmt,
@@ -131,7 +132,7 @@ impl Parser {
 
     fn parse_let(&mut self) -> Result<Decl, Error> {
         if self.eat_current(&TokenKind::LBrack) {
-            return self.parse_stack();
+            return self.parse_deque();
         }
 
         let ident_token = self.current().clone();
@@ -191,7 +192,7 @@ impl Parser {
         ErrorKind::ExpectParenOrEqAfterLetIdent.raise_from(self.current())?;
     }
 
-    fn parse_stack(&mut self) -> Result<Decl, Error> {
+    fn parse_deque(&mut self) -> Result<Decl, Error> {
         let ident_token = self.current().clone();
 
         match ident_token.kind {
@@ -199,7 +200,19 @@ impl Parser {
             _ => ErrorKind::ExpectStackIdent.raise_from(&ident_token)?,
         }
 
-        todo!()
+        let mut exprs = Vec::new();
+
+        while !self.eat_current(&TokenKind::RBrack) {
+            if !self.eat_current(&TokenKind::Comma) {
+                ErrorKind::ExpectCommaOrBrackInDeque.raise_from(self.current())?;
+            }
+
+            let expr = self.parse_expr();
+
+            exprs.push(expr);
+        }
+
+        Ok(Decl::Deque(ident_token, exprs))
     }
 
     fn parse_block(&mut self) -> Result<Vec<Decl>, Error> {
