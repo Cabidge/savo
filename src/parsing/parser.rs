@@ -132,7 +132,7 @@ impl Parser {
 
     fn parse_let(&mut self) -> Result<Decl, Error> {
         if self.eat_current(&TokenKind::LBrack) {
-            return self.parse_deque();
+            return self.parse_deque_decl();
         }
 
         let ident_token = self.current().clone();
@@ -192,7 +192,7 @@ impl Parser {
         ErrorKind::ExpectParenOrEqAfterLetIdent.raise_from(self.current())?;
     }
 
-    fn parse_deque(&mut self) -> Result<Decl, Error> {
+    fn parse_deque_decl(&mut self) -> Result<Decl, Error> {
         let ident_token = self.current().clone();
 
         match ident_token.kind {
