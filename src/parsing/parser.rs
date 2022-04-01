@@ -447,12 +447,12 @@ impl Parser {
 
     fn parse_unary(&mut self) -> Result<Expr, Error> {
         if self.eat_current(&TokenKind::Sub) {
-            let expr = self.parse_expr()?;
+            let expr = self.parse_expr_prec(Precedence::new_l(u8::MAX))?;
             return Ok(Expr::Negate(expr.into()));
         }
 
         if self.eat_current(&TokenKind::Bang) {
-            let expr = self.parse_expr()?;
+            let expr = self.parse_expr_prec(Precedence::new_l(u8::MAX))?;
             return Ok(Expr::Not(expr.into()));
         }
 
