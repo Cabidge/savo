@@ -223,85 +223,6 @@ impl Parser {
         Ok(Decl::Deque(ident_token, exprs))
     }
 
-    fn parse_block(&mut self) -> Result<Vec<Decl>, Error> {
-        if !self.eat_current(&TokenKind::LBrace) {
-            panic!("Cannot call parse_block on a non-`{{` token...");
-        }
-
-        fn is_terminator(decl: &Decl) -> bool {
-            if let Decl::Stmt(stmt) = decl {
-                match stmt {
-                    Stmt::Return(_) |
-                    Stmt::Break(_) |
-                    Stmt::Rewind => return true,
-                    _ => (),
-                }
-            }
-
-            return false;
-        }
-
-        let mut decls = Vec::new();
-        let mut error = None;
-        let mut has_terminated = false;
-        while !self.eat_current(&TokenKind::RBrace) {
-            if self.current().kind == TokenKind::EOF {
-                ErrorKind::ExpectClosingBrace.raise_from(self.current())?;
-            }
-
-            if !error.is_none() {
-                self.advance();
-                continue;
-            }
-
-            if has_terminated {
-                ErrorKind::StmtAfterTerminator.raise_from(self.current())?;
-            }
-
-            match self.parse_decl() {
-                Ok(decl) => {
-                    if !self.eat_current(&TokenKind::Semicolon) &&
-                        self.peek_previous().unwrap().kind != TokenKind::RBrace
-                    {
-                        error = Some(
-                            Error {
-                                kind: ErrorKind::ExpectSemicolonAfterStmt,
-                                token: self.current().clone(),
-                            }
-                        );
-                    }
-
-                    if is_terminator(&decl) {
-                        has_terminated = true;
-                    }
-
-                    decls.push(decl);
-                },
-                Err(err) => error = Some(err),
-            }
-        }
-
-
-        if let Some(err) = error {
-            Err(err)
-        } else {
-            let is_resolved = match decls.last() {
-                Some(decl) => is_terminator(decl),
-                _ => false,
-            };
-
-            if !is_resolved {
-                decls.push(Decl::Stmt(Stmt::Break(Expr::Value(f64::NAN))));
-            }
-
-            Ok(decls)
-        }
-    }
-
-    fn parse_block_expr(&mut self) -> Result<Expr, Error> {
-        Ok(Expr::Block(self.parse_block()?))
-    }
-
     fn parse_stmt(&mut self) -> Result<Stmt, Error> {
         let stmt = match &self.current().kind {
             TokenKind::RArrow => self.parse_break(),
@@ -322,6 +243,58 @@ impl Parser {
                 Stmt::Cond(self.parse_stmt()?.into(), expr),
             _ => stmt,
         })
+    }
+
+    fn parse_break(&mut self) -> Result<Stmt, Error> {
+        self.advance();
+
+        let expr = self.parse_expr()?;
+
+        Ok(Stmt::Break(expr.into()))
+    }
+
+    fn parse_return(&mut self) -> Result<Stmt, Error> {
+        self.advance();
+
+        let expr = self.parse_expr()?;
+
+        Ok(Stmt::Return(expr.into()))
+    }
+
+    fn parse_dump(&mut self) -> Result<Stmt, Error> {
+        let tkn = self.advance().clone();
+        let stmt = match tkn.kind {
+            TokenKind::Str(s) => {
+                self.advance();
+                Stmt::DumpStr(s.clone())
+            },
+            _ => Stmt::Dump(self.parse_expr()?)
+        };
+
+        Ok(stmt)
+    }
+
+    fn parse_dump_val(&mut self) -> Result<Stmt, Error> {
+        self.advance();
+        Ok(Stmt::DumpVal(self.parse_expr()?))
+    }
+
+    fn parse_ident_stmt(&mut self) -> Result<Stmt, Error> {
+        match self.peek().kind {
+            TokenKind::LArrow => self.parse_set(),
+            _ => Ok(Stmt::Expr(self.parse_expr()?))
+        }
+    }
+
+    fn parse_set(&mut self) -> Result<Stmt, Error> {
+        let ident_token = self.current().clone();
+
+        self.advance();
+        self.advance();
+
+        let expr = self.parse_expr()?;
+
+        Ok(Stmt::Set(ident_token, expr))
     }
 
     fn parse_deque_stmt(&mut self) -> Result<Stmt, Error> {
@@ -353,71 +326,6 @@ impl Parser {
         }
 
         Ok(Stmt::Push(ident_token, exprs))
-    }
-
-    fn parse_deque_expr(&mut self) -> Result<Expr, Error> {
-        let is_pop_head = self.eat_current(&TokenKind::Bang);
-        let is_peek_head = !is_pop_head && self.eat_current(&TokenKind::Cond);
-
-        let ident_token = self.current().clone();
-
-        match ident_token.kind {
-            TokenKind::Ident(_) => (),
-            _ => ErrorKind::ExpectStackIdent.raise_from(&ident_token)?,
-        }
-
-        self.advance();
-
-        fn expect_brack(parser: &mut Parser) -> Result<(), Error> {
-            if !parser.eat_current(&TokenKind::RBrack) {
-                ErrorKind::ExpectBrackAfterDequeExpr.raise_from(parser.current())?;
-            }
-            Ok(())
-        }
-
-        if is_pop_head {
-            expect_brack(self)?;
-            return Ok(Expr::PopHead(ident_token));
-        }
-
-        if is_peek_head {
-            expect_brack(self)?;
-            return Ok(Expr::PeekHead(ident_token));
-        }
-
-        if self.eat_current(&TokenKind::Bang) {
-            expect_brack(self)?;
-            return Ok(Expr::Pop(ident_token));
-        }
-
-        if self.eat_current(&TokenKind::Cond) {
-            expect_brack(self)?;
-            return Ok(Expr::Peek(ident_token));
-        }
-
-        if self.eat_current(&TokenKind::RBrack) {
-            return Ok(Expr::Len(ident_token));
-        }
-
-        ErrorKind::UnexpectedToken.raise_from(self.current())?;
-    }
-
-    fn parse_dump(&mut self) -> Result<Stmt, Error> {
-        let tkn = self.advance().clone();
-        let stmt = match tkn.kind {
-            TokenKind::Str(s) => {
-                self.advance();
-                Stmt::DumpStr(s.clone())
-            },
-            _ => Stmt::Dump(self.parse_expr()?)
-        };
-
-        Ok(stmt)
-    }
-
-    fn parse_dump_val(&mut self) -> Result<Stmt, Error> {
-        self.advance();
-        Ok(Stmt::DumpVal(self.parse_expr()?))
     }
 
     fn parse_expr(&mut self) -> Result<Expr, Error> {
@@ -517,30 +425,12 @@ impl Parser {
         Ok(Expr::Value(ch as i8 as f64))
     }
 
-    fn parse_ident_stmt(&mut self) -> Result<Stmt, Error> {
-        match self.peek().kind {
-            TokenKind::LArrow => self.parse_set(),
-            _ => Ok(Stmt::Expr(self.parse_expr()?))
-        }
-    }
-
     fn parse_ident_expr(&mut self) -> Result<Expr, Error> {
         let ident_token = self.current().clone();
         match self.advance().kind {
             TokenKind::LParen => self.parse_call(ident_token),
             _ => Ok(Expr::Get(ident_token)),
         }
-    }
-
-    fn parse_set(&mut self) -> Result<Stmt, Error> {
-        let ident_token = self.current().clone();
-
-        self.advance();
-        self.advance();
-
-        let expr = self.parse_expr()?;
-
-        Ok(Stmt::Set(ident_token, expr))
     }
 
     fn parse_call(&mut self, token: Token) -> Result<Expr, Error> {
@@ -559,20 +449,129 @@ impl Parser {
         Ok(Expr::Call(token, args))
     }
 
-    fn parse_break(&mut self) -> Result<Stmt, Error> {
+    fn parse_deque_expr(&mut self) -> Result<Expr, Error> {
+        let is_pop_head = self.eat_current(&TokenKind::Bang);
+        let is_peek_head = !is_pop_head && self.eat_current(&TokenKind::Cond);
+
+        let ident_token = self.current().clone();
+
+        match ident_token.kind {
+            TokenKind::Ident(_) => (),
+            _ => ErrorKind::ExpectStackIdent.raise_from(&ident_token)?,
+        }
+
         self.advance();
 
-        let expr = self.parse_expr()?;
+        fn expect_brack(parser: &mut Parser) -> Result<(), Error> {
+            if !parser.eat_current(&TokenKind::RBrack) {
+                ErrorKind::ExpectBrackAfterDequeExpr.raise_from(parser.current())?;
+            }
+            Ok(())
+        }
 
-        Ok(Stmt::Break(expr.into()))
+        if is_pop_head {
+            expect_brack(self)?;
+            return Ok(Expr::PopHead(ident_token));
+        }
+
+        if is_peek_head {
+            expect_brack(self)?;
+            return Ok(Expr::PeekHead(ident_token));
+        }
+
+        if self.eat_current(&TokenKind::Bang) {
+            expect_brack(self)?;
+            return Ok(Expr::Pop(ident_token));
+        }
+
+        if self.eat_current(&TokenKind::Cond) {
+            expect_brack(self)?;
+            return Ok(Expr::Peek(ident_token));
+        }
+
+        if self.eat_current(&TokenKind::RBrack) {
+            return Ok(Expr::Len(ident_token));
+        }
+
+        ErrorKind::UnexpectedToken.raise_from(self.current())?;
     }
 
-    fn parse_return(&mut self) -> Result<Stmt, Error> {
-        self.advance();
+    fn parse_block(&mut self) -> Result<Vec<Decl>, Error> {
+        if !self.eat_current(&TokenKind::LBrace) {
+            panic!("Cannot call parse_block on a non-`{{` token...");
+        }
 
-        let expr = self.parse_expr()?;
+        fn is_terminator(decl: &Decl) -> bool {
+            if let Decl::Stmt(stmt) = decl {
+                match stmt {
+                    Stmt::Return(_) |
+                    Stmt::Break(_) |
+                    Stmt::Rewind => return true,
+                    _ => (),
+                }
+            }
 
-        Ok(Stmt::Return(expr.into()))
+            return false;
+        }
+
+        let mut decls = Vec::new();
+        let mut error = None;
+        let mut has_terminated = false;
+        while !self.eat_current(&TokenKind::RBrace) {
+            if self.current().kind == TokenKind::EOF {
+                ErrorKind::ExpectClosingBrace.raise_from(self.current())?;
+            }
+
+            if !error.is_none() {
+                self.advance();
+                continue;
+            }
+
+            if has_terminated {
+                ErrorKind::StmtAfterTerminator.raise_from(self.current())?;
+            }
+
+            match self.parse_decl() {
+                Ok(decl) => {
+                    if !self.eat_current(&TokenKind::Semicolon) &&
+                        self.peek_previous().unwrap().kind != TokenKind::RBrace
+                    {
+                        error = Some(
+                            Error {
+                                kind: ErrorKind::ExpectSemicolonAfterStmt,
+                                token: self.current().clone(),
+                            }
+                        );
+                    }
+
+                    if is_terminator(&decl) {
+                        has_terminated = true;
+                    }
+
+                    decls.push(decl);
+                },
+                Err(err) => error = Some(err),
+            }
+        }
+
+        if let Some(err) = error {
+            Err(err)
+        } else {
+            let is_resolved = match decls.last() {
+                Some(decl) => is_terminator(decl),
+                _ => false,
+            };
+
+            if !is_resolved {
+                decls.push(Decl::Stmt(Stmt::Break(Expr::Value(f64::NAN))));
+            }
+
+            Ok(decls)
+        }
+    }
+
+    fn parse_block_expr(&mut self) -> Result<Expr, Error> {
+        Ok(Expr::Block(self.parse_block()?))
     }
 
     // -- Token stream helper methods
