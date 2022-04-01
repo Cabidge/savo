@@ -44,6 +44,14 @@ double __sizeOfDeque(Deque *deque) {
     return deque->size;
 }
 
+size_t __indexDeque(Deque *deque, size_t index) {
+    return (deque->offset + index) % deque->capacity;
+}
+
+double __getDeque(Deque *deque, size_t index) {
+    return deque->data[__indexDeque(deque, index)];
+}
+
 void __resizeDeque(Deque *deque, size_t newCapacity) {
     if (deque == NULL) return;
 
@@ -54,9 +62,8 @@ void __resizeDeque(Deque *deque, size_t newCapacity) {
         exit(1);
     }
 
-    double *head = deque->data + deque->offset;
     for (size_t i = 0; i < deque->size; i++) {
-        newData[i] = head[i];
+        newData[i] = __getDeque(deque, i);
     }
 
     free(deque->data);
@@ -82,7 +89,7 @@ double __peekDeque(Deque *deque) {
         return NAN;
     }
 
-    return deque->data[deque->offset + deque->size - 1];
+    return __getDeque(deque, deque->size - 1);
 }
 
 // Returns the earliest element added
@@ -91,15 +98,15 @@ double __peekHeadDeque(Deque *deque) {
         return NAN;
     }
 
-    return deque->data[deque->offset];
+    return __getDeque(deque, 0);
 }
 
 void __pushDeque(Deque *deque, double value) {
-    if (deque->offset + deque->size + 1 >= deque->capacity) {
+    if (deque->size + 1 >= deque->capacity) {
         __resizeDeque(deque, deque->size * 3 / 2);
     }
 
-    deque->data[deque->offset + deque->size] = value;
+    deque->data[__indexDeque(deque, deque->size)] = value;
     deque->size++;
 }
 
@@ -126,7 +133,7 @@ double __popHeadDeque(Deque *deque) {
     double value = __peekHeadDeque(deque);
 
     deque->size--;
-    deque->offset++;
+    deque->offset = (deque->offset + 1) % deque->capacity;
     __shrinkDequeIfHalf(deque);
 
     return value;
