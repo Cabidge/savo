@@ -248,6 +248,10 @@ impl Parser {
     fn parse_break(&mut self) -> Result<Stmt, Error> {
         self.advance();
 
+        if self.current().kind == TokenKind::Semicolon {
+            return Ok(Stmt::Break(Expr::Value(f64::NAN)));
+        }
+
         let expr = self.parse_expr()?;
 
         Ok(Stmt::Break(expr.into()))
@@ -255,6 +259,10 @@ impl Parser {
 
     fn parse_return(&mut self) -> Result<Stmt, Error> {
         self.advance();
+
+        if self.current().kind == TokenKind::Semicolon {
+            return Ok(Stmt::Return(Expr::Value(f64::NAN)));
+        }
 
         let expr = self.parse_expr()?;
 
