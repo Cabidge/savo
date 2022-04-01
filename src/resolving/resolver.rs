@@ -294,6 +294,11 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
                 }
             }
         }
+        Expr::IsNan(value) => {
+            let lhs = resolve_expr(block ,program, value)?;
+            let rhs = lhs.clone();
+            IRExpr::BinOp(Op::NE, lhs.into(), rhs.into())
+        }
         Expr::Negate(value) => {
             let lhs = IRExpr::Val(0.0);
             let rhs = resolve_expr(block, program, value)?;

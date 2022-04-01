@@ -33,6 +33,7 @@ pub fn parse_tokens(tokens: Vec<Token>) -> Result<Vec<Decl>, ()> {
                     StmtAfterTerminator => "Unreachable statement after unconditional terminator".to_string(),
                     UnexpectedToken => format!("Unexpected token {}", err.token.kind),
                     UnmatchedParen => "Unmatched `(`".to_string(),
+                    UnmatchedAngleBrack => "Unmatched '<'".to_string(),
                 };
 
                 // TODO: Make it so it's not needed to check this

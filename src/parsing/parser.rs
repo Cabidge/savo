@@ -35,6 +35,7 @@ pub enum Expr {
     Value(f64),
     Get(Token),
     BinOp(Token, Box<Expr>, Box<Expr>),
+    IsNan(Box<Expr>),
     Negate(Box<Expr>),
     Not(Box<Expr>),
     Call(Token, Vec<Expr>),
@@ -70,6 +71,7 @@ pub enum ErrorKind {
     StmtAfterTerminator,
     UnexpectedToken,
     UnmatchedParen,
+    UnmatchedAngleBrack,
 }
 
 // TODO: Maybe move this into its own module
@@ -466,6 +468,16 @@ impl Parser {
             return Ok(expr);
         }
 
+        if self.eat_current(&TokenKind::LT) { // <
+            let expr = self.parse_expr_prec(prec_of(&TokenKind::Add).unwrap())?; // Precedence higher than comparison ops
+
+            if !self.eat_current(&TokenKind::GT) { // >
+                ErrorKind::UnmatchedAngleBrack.raise_from(self.current())?;
+            }
+
+            return Ok(Expr::IsNan(expr.into()));
+        }
+
         if self.eat_current(&TokenKind::DLeft) {
             return Ok(Expr::Pull);
         }
@@ -616,6 +628,7 @@ impl fmt::Display for Expr {
             },
             Expr::Value(v) => v.fmt(f),
             Expr::Get(tkn) => tkn.get_ident().unwrap().fmt(f),
+            Expr::IsNan(expr) => write!(f, "(isnan {})", expr),
             Expr::Negate(expr) => write!(f, "-{}", expr),
             Expr::Not(expr) => write!(f, "!{}", expr),
             Expr::Pull => write!(f, "<<"),
