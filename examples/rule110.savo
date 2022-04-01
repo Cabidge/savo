@@ -36,12 +36,6 @@ let step {
         let a = [VIEW!];
         [VIEW, a, b, c];
 
-        #>> "View: ";
-        #dump_cell(a);
-        #dump_cell(b);
-        #dump_cell(c);
-        #>> '\n';
-
         [RESERVE, result(a, b, c)];
         shift_view();
 
