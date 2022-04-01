@@ -322,6 +322,35 @@ impl Parser {
     fn parse_deque_stmt(&mut self) -> Result<Stmt, Error> {
         self.advance();
 
+        if self.peek().kind != TokenKind::Comma {
+            return Ok(Stmt::Expr(self.parse_deque_expr()?));
+        }
+
+        let ident_token = self.current().clone();
+
+        match ident_token.kind {
+            TokenKind::Ident(_) => (),
+            _ => ErrorKind::ExpectStackIdent.raise_from(&ident_token)?,
+        }
+
+        self.advance();
+
+        let mut exprs = Vec::new();
+
+        while !self.eat_current(&TokenKind::RBrack) {
+            if !self.eat_current(&TokenKind::Comma) {
+                ErrorKind::ExpectCommaOrBrackInDeque.raise_from(self.current())?;
+            }
+
+            let expr = self.parse_expr()?;
+
+            exprs.push(expr);
+        }
+
+        Ok(Stmt::Push(ident_token, exprs))
+    }
+
+    fn parse_deque_expr(&mut self) -> Result<Expr, Error> {
         // TODO: Parse prefix exprs
         // eg. [?S] - peek head
         //     [!S] - pop head
@@ -340,26 +369,14 @@ impl Parser {
                 ErrorKind::ExpectBrackAfterDequeExpr.raise_from(self.current())?;
             }
 
-            return Ok(Stmt::Expr(Expr::Pop(ident_token)));
+            return Ok(Expr::Pop(ident_token));
         }
 
         if self.eat_current(&TokenKind::RBrack) {
-            return Ok(Stmt::Expr(Expr::Len(ident_token)));
+            return Ok(Expr::Len(ident_token));
         }
 
-        let mut exprs = Vec::new();
-
-        while !self.eat_current(&TokenKind::RBrack) {
-            if !self.eat_current(&TokenKind::Comma) {
-                ErrorKind::ExpectCommaOrBrackInDeque.raise_from(self.current())?;
-            }
-
-            let expr = self.parse_expr()?;
-
-            exprs.push(expr);
-        }
-
-        Ok(Stmt::Push(ident_token, exprs))
+        ErrorKind::UnexpectedToken.raise_from(self.current())?;
     }
 
     fn parse_dump(&mut self) -> Result<Stmt, Error> {
@@ -430,6 +447,10 @@ impl Parser {
 
         if self.eat_current(&TokenKind::DLeft) {
             return Ok(Expr::Pull);
+        }
+
+        if self.eat_current(&TokenKind::LBrack) {
+            return self.parse_deque_expr();
         }
 
         match &self.current().kind {
