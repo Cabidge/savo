@@ -207,6 +207,8 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> Re
                 stmts.push(IRStmt::Push(name.clone(), expr));
             }
 
+            stmts.push(IRStmt::Break(IRExpr::Val(f64::NAN)));
+
             IRStmt::Expr(IRExpr::Block(stmts))
         },
     };
