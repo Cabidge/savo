@@ -285,10 +285,14 @@ impl<'ctx> Compiler<'ctx> {
                 let last_instr = fn_ctx
                     .builder
                     .get_insert_block()
-                    .and_then(|block| block.get_last_instruction())
-                    .unwrap();
+                    .and_then(|block| block.get_last_instruction());
 
-                if last_instr.get_opcode() != InstructionOpcode::Br {
+                let should_branch = match last_instr {
+                    Some(instr) => instr.get_opcode() != InstructionOpcode::Br,
+                    None => true,
+                };
+
+                if should_branch {
                     fn_ctx.builder.build_unconditional_branch(end_block);
                 }
 
