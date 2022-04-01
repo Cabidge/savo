@@ -1,0 +1,89 @@
+let [PATTERN];
+let [RESERVE];
+let [VIEW, 0, 0, 0];
+
+let size = 100;
+
+let main {
+    let i = 0;
+    i < size - 1? {
+        [PATTERN, 0];
+
+        i <- i + 1;
+        i < size - 1? ^^;
+    }
+
+    [PATTERN, 1];
+
+    let i = size - 1;
+    dump();
+    i? {
+        step();
+        dump();
+        i <- i - 1;
+        i? ^^;
+    }
+}
+
+let step {
+    shift_view();
+    shift_view();
+
+    let n = size;
+    n? {
+        let c = [VIEW!];
+        let b = [VIEW!];
+        let a = [VIEW!];
+        [VIEW, a, b, c];
+
+        #>> "View: ";
+        #dump_cell(a);
+        #dump_cell(b);
+        #dump_cell(c);
+        #>> '\n';
+
+        [RESERVE, result(a, b, c)];
+        shift_view();
+
+        n <- n - 1;
+        n? ^^;
+    }
+
+    [RESERVE]? {
+        [PATTERN, [!RESERVE]];
+        [RESERVE]? ^^;
+    }
+}
+
+let result(a, b, c) {
+     a &  b &  c? -> 0;
+    !a & !b & !c? -> 0;
+     a & !b & !c? -> 0;
+    -> 1;
+}
+
+let shift_view {
+    [!VIEW];
+    let x = [!PATTERN];
+    !(x = x)? x <- 0;
+    [VIEW, x];
+}
+
+let dump {
+    let n = [PATTERN];
+    n? {
+        let x = [!PATTERN];
+
+        dump_cell(x);
+        [PATTERN, x];
+
+        n <- n - 1;
+        n? ^^;
+    }
+    >> '\n';
+}
+
+let dump_cell(n) {
+    n = 0? >> '.';
+    n = 1? >> '#';
+}
