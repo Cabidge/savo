@@ -201,6 +201,8 @@ impl Parser {
             _ => ErrorKind::ExpectStackIdent.raise_from(&ident_token)?,
         }
 
+        self.advance();
+
         let mut exprs = Vec::new();
 
         while !self.eat_current(&TokenKind::RBrack) {
@@ -330,6 +332,8 @@ impl Parser {
             TokenKind::Ident(_) => (),
             _ => ErrorKind::ExpectStackIdent.raise_from(&ident_token)?,
         }
+
+        self.advance();
 
         if self.eat_current(&TokenKind::Bang) {
             if !self.eat_current(&TokenKind::RBrack) {
