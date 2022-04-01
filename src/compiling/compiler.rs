@@ -384,7 +384,7 @@ impl<'ctx> Compiler<'ctx> {
                             Op::EQ => FloatPredicate::OEQ,
                             Op::LT => FloatPredicate::OLT,
                             Op::GT => FloatPredicate::OGT,
-                            Op::NE => FloatPredicate::ONE,
+                            Op::NE => FloatPredicate::UNE,
                             Op::GE => FloatPredicate::OGE,
                             Op::LE => FloatPredicate::OLE,
                             _ => unreachable!(),
