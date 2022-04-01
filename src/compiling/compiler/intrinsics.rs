@@ -47,7 +47,7 @@ pub(super) fn build<'ctx>(ctx: &'ctx Context, module: &Module<'ctx>) {
         module.add_function("delDeque", del_deque_fn_type, None);
 
         let f64_ptr_fn_type = f64_type.fn_type(&[ptr_type.into()], false);
-        module.add_function("sizeOfQueue", f64_ptr_fn_type, None);
+        module.add_function("sizeOfDeque", f64_ptr_fn_type, None);
         module.add_function("peekDeque", f64_ptr_fn_type, None);
         module.add_function("peekHeadDeque", f64_ptr_fn_type, None);
         module.add_function("popDeque", f64_ptr_fn_type, None);
