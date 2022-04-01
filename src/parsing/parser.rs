@@ -11,7 +11,12 @@ pub struct Parser {
 #[derive(Debug)]
 pub enum Decl {
     Var(Token, Expr),
-    Func(Token, Vec<String>, Vec<Decl>),
+    Func {
+        name: Token,
+        deques: Vec<String>,
+        params: Vec<String>,
+        body: Vec<Decl>
+    },
     Deque(Token, Vec<Expr>),
     Stmt(Stmt)
 }
@@ -192,7 +197,12 @@ impl Parser {
                 ErrorKind::ExpectBraceAfterParams.raise_from(self.current())?;
             };
 
-            return Ok(Decl::Func(ident_token, params, block));
+            return Ok(Decl::Func {
+                name: ident_token,
+                deques: Vec::new(),
+                params,
+                body: block,
+            });
         }
 
         ErrorKind::ExpectParenOrEqAfterLetIdent.raise_from(self.current())?;

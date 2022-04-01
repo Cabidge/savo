@@ -36,7 +36,7 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
                 let value = calculate_literal(&program.globals, &expr);
                 program.globals.insert(name, value);
             },
-            Decl::Func(tkn, params, body) => {
+            Decl::Func{ name: tkn, params, body, .. } => {
                 let name = tkn.get_ident().expect("Func's token should be an ident");
                 match resolve_func(&program, params, body) {
                     Ok(block) => { program.funcs.insert(name, block); },
@@ -122,7 +122,7 @@ fn resolve_decl(block: Rc<RefCell<Block>>, program: &Program, decl: &Decl) -> Re
             let name = block.borrow().get_var_name(&name, &program.globals).unwrap();
             IRStmt::Set(name, initial)
         },
-        Decl::Func(_, _, _) => todo!(),
+        Decl::Func{..} => todo!(),
         Decl::Deque(..) => todo!(),
         Decl::Stmt(stmt) => resolve_stmt(block.clone(), program, &stmt)?,
     };
