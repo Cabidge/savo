@@ -59,11 +59,18 @@ impl<'ctx> Compiler<'ctx> {
 
     pub fn compile(&self, program: &Program) {
         let f64_type = self.ctx.f64_type();
+        let ptr_type = self.ctx.bool_type().ptr_type(AddressSpace::Generic);
 
         // Define globals
         for (name, &value) in program.globals.iter() {
             let global = self.module.add_global(f64_type, Some(AddressSpace::Global), name);
             global.set_initializer(&f64_type.const_float(value));
+        }
+
+        // Define global deques
+        for name in program.deques.keys() {
+            let deque = self.module.add_global(ptr_type, Some(AddressSpace::Global), name);
+            deque.set_initializer(&ptr_type.const_null());
         }
 
         // Declare functions
@@ -81,7 +88,7 @@ impl<'ctx> Compiler<'ctx> {
         }
 
         // Define main
-        self.build_main();
+        self.build_main(&program.deques);
     }
 
     pub fn export(&self, out: &str) {
@@ -127,7 +134,7 @@ impl<'ctx> Compiler<'ctx> {
             .unwrap();
     }
 
-    fn build_main(&self) {
+    fn build_main(&self, deques: &HashMap<String, Vec<f64>>) {
         let i32_type = self.ctx.i32_type();
         let main_fn_type = i32_type.fn_type(&[], false);
         let main_fn = self.module.add_function("main", main_fn_type, None);
@@ -139,6 +146,36 @@ impl<'ctx> Compiler<'ctx> {
         let builder = self.ctx.create_builder();
         builder.position_at_end(fn_block);
 
+        // Construct deques
+        for (name, vals) in deques.iter() {
+            let f64_type = self.ctx.f64_type();
+            let new_deque_fn = self.module.get_function("newDeque").unwrap();
+            let push_fn = self.module.get_function("pushDeque").unwrap();
+
+            let deque_ptr = builder
+                .build_call(new_deque_fn, &[], "deque.new")
+                .try_as_basic_value()
+                .left()
+                .unwrap()
+                .into_pointer_value();
+
+            for val in vals {
+                builder.build_call(
+                    push_fn,
+                    &[deque_ptr.into(), f64_type.const_float(*val).into()],
+                    "deque.push"
+                );
+            }
+
+            let global_deque_ptr = self
+                .module
+                .get_global(name)
+                .unwrap()
+                .as_pointer_value();
+
+            builder.build_store(global_deque_ptr, deque_ptr);
+        }
+
         // User-defined main fn
         let user_main_fn = self.module.get_function("$main").unwrap();
 
@@ -148,6 +185,20 @@ impl<'ctx> Compiler<'ctx> {
             .left()
             .unwrap()
             .into_float_value();
+
+        // Destruct deques
+        for name in deques.keys() {
+            let del_deque_fn = self.module.get_function("delDeque").unwrap();
+
+            let deque_ptr = self
+                .module
+                .get_global(name)
+                .unwrap()
+                .as_pointer_value();
+
+            let deque_ptr = builder.build_load(deque_ptr, "");
+            builder.build_call(del_deque_fn, &[deque_ptr.into()], "deque.free");
+        }
 
         // Return
         builder.build_return(Some(&i32_type.const_zero()));
@@ -276,6 +327,21 @@ impl<'ctx> Compiler<'ctx> {
                 let dumpf = self.module.get_function("dumpf").unwrap();
                 fn_ctx.builder.build_call(dumpf, &[expr.into()], "dump");
             },
+            Stmt::Push(name, expr) => {
+                let expr = self.build_expr(expr, fn_ctx);
+
+                let push_fn = self.module.get_function("pushDeque").unwrap();
+
+                let deque_ptr = self
+                    .module
+                    .get_global(name)
+                    .unwrap()
+                    .as_pointer_value();
+
+                let deque_ptr = fn_ctx.builder.build_load(deque_ptr, "");
+
+                fn_ctx.builder.build_call(push_fn, &[deque_ptr.into(), expr.into()], "deque.push");
+            }
         }
     }
 
@@ -371,6 +437,40 @@ impl<'ctx> Compiler<'ctx> {
                       .build_load(block_res, "")
                       .into_float_value()
             },
+            Expr::Len(name) => {
+                let len_fn = self.module.get_function("sizeOfDeque").unwrap();
+
+                let deque_ptr = self
+                    .module
+                    .get_global(name)
+                    .unwrap()
+                    .as_pointer_value();
+
+                let deque_ptr = fn_ctx.builder.build_load(deque_ptr, "");
+
+                fn_ctx.builder.build_call(len_fn, &[deque_ptr.into()], "deque.len")
+                    .try_as_basic_value()
+                    .left()
+                    .unwrap()
+                    .into_float_value()
+            }
+            Expr::Pop(name) => {
+                let pop_fn = self.module.get_function("popDeque").unwrap();
+
+                let deque_ptr = self
+                    .module
+                    .get_global(name)
+                    .unwrap()
+                    .as_pointer_value();
+
+                let deque_ptr = fn_ctx.builder.build_load(deque_ptr, "");
+
+                fn_ctx.builder.build_call(pop_fn, &[deque_ptr.into()], "deque.pop")
+                    .try_as_basic_value()
+                    .left()
+                    .unwrap()
+                    .into_float_value()
+            }
         }
     }
 }
