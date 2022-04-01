@@ -65,7 +65,7 @@ let result(a, b, c) {
 let shift_view {
     [!VIEW];
     let x = [!PATTERN];
-    !(x = x)? x <- 0;
+    <x>? x <- 0;
     [VIEW, x];
 }
 
