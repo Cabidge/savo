@@ -40,11 +40,11 @@ void delDeque(Deque *deque) {
 }
 
 // Function to interface with savo to automaticall convert size to double
-double sizeOfQueue(Deque *deque) {
+double sizeOfDeque(Deque *deque) {
     return deque->size;
 }
 
-void resizeQueue(Deque *deque, size_t newCapacity) {
+void resizeDeque(Deque *deque, size_t newCapacity) {
     if (deque == NULL) return;
 
     double *newData = malloc(sizeof(double) * newCapacity);
@@ -73,7 +73,7 @@ void shrinkDequeIfHalf(Deque *deque) {
     size_t newCapacity = fmax(deque->capacity / 2, INITIAL_CAPACITY);
     if (deque->size >= newCapacity) return;
 
-    resizeQueue(deque, newCapacity);
+    resizeDeque(deque, newCapacity);
 }
 
 // Returns the most recent element added
@@ -96,7 +96,7 @@ double peekHeadDeque(Deque *deque) {
 
 void pushDeque(Deque *deque, double value) {
     if (deque->offset + deque->size + 1 >= deque->capacity) {
-        resizeQueue(deque, deque->size * 3 / 2);
+        resizeDeque(deque, deque->size * 3 / 2);
     }
 
     deque->data[deque->offset + deque->size] = value;
