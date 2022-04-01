@@ -72,6 +72,7 @@ pub enum ErrorKind {
     UnknownEscapeChar(char),
     UnmatchedSingleQuote,
     UnmatchedDoubleQuote,
+    DunderReservedKeyword,
 }
 
 impl Token {
@@ -338,12 +339,13 @@ impl Lexer {
             is_ident(self.stream.advance())
         } {}
 
+        if ident.len() >= 2 && &ident[..2] == "__" {
+            return TokenKind::Error(ErrorKind::DunderReservedKeyword);
+        }
+
         match ident.as_str() {
             "let" => TokenKind::Let,
             "main" |
-            "dumpf" |
-            "putfc" |
-            "getfc" |
             "pow" => TokenKind::Ident(format!("${}", ident)),
             _ => TokenKind::Ident(ident),
         }

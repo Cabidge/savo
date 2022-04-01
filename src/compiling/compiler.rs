@@ -149,8 +149,8 @@ impl<'ctx> Compiler<'ctx> {
         // Construct deques
         for (name, vals) in deques.iter() {
             let f64_type = self.ctx.f64_type();
-            let new_deque_fn = self.module.get_function("newDeque").unwrap();
-            let push_fn = self.module.get_function("pushDeque").unwrap();
+            let new_deque_fn = self.module.get_function("__newDeque").unwrap();
+            let push_fn = self.module.get_function("__pushDeque").unwrap();
 
             let deque_ptr = builder
                 .build_call(new_deque_fn, &[], "deque.new")
@@ -188,7 +188,7 @@ impl<'ctx> Compiler<'ctx> {
 
         // Destruct deques
         for name in deques.keys() {
-            let del_deque_fn = self.module.get_function("delDeque").unwrap();
+            let del_deque_fn = self.module.get_function("__delDeque").unwrap();
 
             let deque_ptr = self
                 .module
@@ -318,19 +318,19 @@ impl<'ctx> Compiler<'ctx> {
             Stmt::Dump(expr) => {
                 let expr = self.build_expr(expr, fn_ctx);
 
-                let putfc = self.module.get_function("putfc").unwrap();
+                let putfc = self.module.get_function("__putfc").unwrap();
                 fn_ctx.builder.build_call(putfc, &[expr.into()], "dump");
             },
             Stmt::DumpVal(expr) => {
                 let expr = self.build_expr(expr, fn_ctx);
 
-                let dumpf = self.module.get_function("dumpf").unwrap();
+                let dumpf = self.module.get_function("__dumpf").unwrap();
                 fn_ctx.builder.build_call(dumpf, &[expr.into()], "dump");
             },
             Stmt::Push(name, expr) => {
                 let expr = self.build_expr(expr, fn_ctx);
 
-                let push_fn = self.module.get_function("pushDeque").unwrap();
+                let push_fn = self.module.get_function("__pushDeque").unwrap();
 
                 let deque_ptr = self
                     .module
@@ -438,7 +438,7 @@ impl<'ctx> Compiler<'ctx> {
                       .into_float_value()
             },
             Expr::Len(name) => {
-                let len_fn = self.module.get_function("sizeOfDeque").unwrap();
+                let len_fn = self.module.get_function("__sizeOfDeque").unwrap();
 
                 let deque_ptr = self
                     .module
@@ -455,7 +455,7 @@ impl<'ctx> Compiler<'ctx> {
                     .into_float_value()
             }
             Expr::Pop(name) => {
-                let pop_fn = self.module.get_function("popDeque").unwrap();
+                let pop_fn = self.module.get_function("__popDeque").unwrap();
 
                 let deque_ptr = self
                     .module

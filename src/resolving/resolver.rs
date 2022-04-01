@@ -323,7 +323,7 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
             let stmts = resolve_scope(block, program, &stmts[..])?;
             IRExpr::Block(stmts)
         },
-        Expr::Pull => IRExpr::Call("getfc".to_string(), Vec::new()),
+        Expr::Pull => IRExpr::Call("__getfc".to_string(), Vec::new()),
         Expr::Pop(tkn) => {
             let name = tkn.get_ident().expect("Pop's token should be an ident");
             IRExpr::Pop(name)
