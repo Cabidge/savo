@@ -437,8 +437,8 @@ impl<'ctx> Compiler<'ctx> {
                       .build_load(block_res, "")
                       .into_float_value()
             },
-            Expr::Len(name) => {
-                let len_fn = self.module.get_function("__sizeOfDeque").unwrap();
+            Expr::DequeExpr(name, func) => {
+                let deque_fn = self.module.get_function(func).unwrap();
 
                 let deque_ptr = self
                     .module
@@ -448,24 +448,7 @@ impl<'ctx> Compiler<'ctx> {
 
                 let deque_ptr = fn_ctx.builder.build_load(deque_ptr, "");
 
-                fn_ctx.builder.build_call(len_fn, &[deque_ptr.into()], "deque.len")
-                    .try_as_basic_value()
-                    .left()
-                    .unwrap()
-                    .into_float_value()
-            }
-            Expr::Pop(name) => {
-                let pop_fn = self.module.get_function("__popDeque").unwrap();
-
-                let deque_ptr = self
-                    .module
-                    .get_global(name)
-                    .unwrap()
-                    .as_pointer_value();
-
-                let deque_ptr = fn_ctx.builder.build_load(deque_ptr, "");
-
-                fn_ctx.builder.build_call(pop_fn, &[deque_ptr.into()], "deque.pop")
+                fn_ctx.builder.build_call(deque_fn, &[deque_ptr.into()], "")
                     .try_as_basic_value()
                     .left()
                     .unwrap()

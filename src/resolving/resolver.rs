@@ -324,16 +324,18 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
             IRExpr::Block(stmts)
         },
         Expr::Pull => IRExpr::Call("__getfc".to_string(), Vec::new()),
-        Expr::Pop(tkn) => {
-            let name = tkn.get_ident().expect("Pop's token should be an ident");
-            IRExpr::Pop(name)
-        },
-        Expr::Peek(_) => todo!(),
-        Expr::PopHead(_) => todo!(),
-        Expr::PeekHead(_) => todo!(),
-        Expr::Len(tkn) => {
-            let name = tkn.get_ident().expect("Len's token should be an ident");
-            IRExpr::Len(name)
+        Expr::Pop(tkn) | Expr::Peek(tkn) | Expr::PopHead(tkn) |
+        Expr::PeekHead(tkn) | Expr::Len(tkn) => {
+            let name = tkn.get_ident().expect("Expected ident token");
+            let func = match expr {
+                Expr::Pop(_) => "__popDeque",
+                Expr::Peek(_) => "__peekDeque",
+                Expr::PopHead(_) => "__popHeadDeque",
+                Expr::PeekHead(_) => "__PeekHeadDeque",
+                Expr::Len(_) => "__sizeOfDeque",
+                _ => unreachable!(),
+            };
+            IRExpr::DequeExpr(name, func)
         },
     };
 
