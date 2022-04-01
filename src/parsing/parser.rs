@@ -41,6 +41,9 @@ pub enum Expr {
     Block(Vec<Decl>),
     Pull,
     Pop(Token),
+    Peek(Token),
+    PopHead(Token),
+    PeekHead(Token),
     Len(Token), // Get the size of a deque
 }
 
@@ -351,9 +354,8 @@ impl Parser {
     }
 
     fn parse_deque_expr(&mut self) -> Result<Expr, Error> {
-        // TODO: Parse prefix exprs
-        // eg. [?S] - peek head
-        //     [!S] - pop head
+        let is_pop_head = self.eat_current(&TokenKind::Bang);
+        let is_peek_head = !is_pop_head && self.eat_current(&TokenKind::Cond);
 
         let ident_token = self.current().clone();
 
@@ -364,12 +366,31 @@ impl Parser {
 
         self.advance();
 
-        if self.eat_current(&TokenKind::Bang) {
-            if !self.eat_current(&TokenKind::RBrack) {
-                ErrorKind::ExpectBrackAfterDequeExpr.raise_from(self.current())?;
+        fn expect_brack(parser: &mut Parser) -> Result<(), Error> {
+            if !parser.eat_current(&TokenKind::RBrack) {
+                ErrorKind::ExpectBrackAfterDequeExpr.raise_from(parser.current())?;
             }
+            Ok(())
+        }
 
+        if is_pop_head {
+            expect_brack(self)?;
+            return Ok(Expr::PopHead(ident_token));
+        }
+
+        if is_peek_head {
+            expect_brack(self)?;
+            return Ok(Expr::PeekHead(ident_token));
+        }
+
+        if self.eat_current(&TokenKind::Bang) {
+            expect_brack(self)?;
             return Ok(Expr::Pop(ident_token));
+        }
+
+        if self.eat_current(&TokenKind::Cond) {
+            expect_brack(self)?;
+            return Ok(Expr::Peek(ident_token));
         }
 
         if self.eat_current(&TokenKind::RBrack) {
@@ -600,6 +621,9 @@ impl fmt::Display for Expr {
             Expr::Pull => write!(f, "<<"),
             Expr::Block(_) => todo!(),
             Expr::Pop(tkn) => write!(f, "[{}!]", tkn.get_ident().unwrap()),
+            Expr::Peek(tkn) => write!(f, "[{}?]", tkn.get_ident().unwrap()),
+            Expr::PopHead(tkn) => write!(f, "[!{}]", tkn.get_ident().unwrap()),
+            Expr::PeekHead(tkn) => write!(f, "[?{}]", tkn.get_ident().unwrap()),
             Expr::Len(tkn) => write!(f, "[{}]", tkn.get_ident().unwrap()),
         }
     }

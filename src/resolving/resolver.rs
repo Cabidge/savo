@@ -328,6 +328,9 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
             let name = tkn.get_ident().expect("Pop's token should be an ident");
             IRExpr::Pop(name)
         },
+        Expr::Peek(_) => todo!(),
+        Expr::PopHead(_) => todo!(),
+        Expr::PeekHead(_) => todo!(),
         Expr::Len(tkn) => {
             let name = tkn.get_ident().expect("Len's token should be an ident");
             IRExpr::Len(name)
