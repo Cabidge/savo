@@ -57,6 +57,7 @@ size_t __indexDeque(Deque *deque, size_t index) {
 }
 
 double __getDeque(Deque *deque, size_t index) {
+    if (deque->size == 0) return NAN;
     return deque->data[__indexDeque(deque, index)];
 }
 
@@ -93,19 +94,11 @@ void __shrinkDequeIfHalf(Deque *deque) {
 
 // Returns the most recent element added
 double __peekDeque(Deque *deque) {
-    if (deque->size == 0) {
-        return NAN;
-    }
-
     return __getDeque(deque, deque->size - 1);
 }
 
 // Returns the earliest element added
 double __peekHeadDeque(Deque *deque) {
-    if (deque->size == 0) {
-        return NAN;
-    }
-
     return __getDeque(deque, 0);
 }
 
