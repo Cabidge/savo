@@ -1,10 +1,12 @@
 let [PATTERN];
-let [RESERVE];
-let [VIEW, 0, 0, 0];
 
 let size = 100;
 
 let main {
+    size < 3? -> {
+        >> "Size is too small!";
+    }
+
     let i = 0;
     i < size - 1? {
         [PATTERN, 0];
@@ -26,26 +28,23 @@ let main {
 }
 
 let step {
-    shift_view();
-    shift_view();
+    let a = 0;
+    let b = 0;
+    let c = [!PATTERN];
 
     let n = size;
-    n? {
-        let c = [VIEW!];
-        let b = [VIEW!];
-        let a = [VIEW!];
-        [VIEW, a, b, c];
+    {
+        a <- b;
+        b <- c;
+        c <- {
+            n = 1? -> 0;
+            -> [!PATTERN];
+        }
 
-        [RESERVE, result(a, b, c)];
-        shift_view();
+        [PATTERN, result(a, b, c)];
 
         n <- n - 1;
         n? ^^;
-    }
-
-    [RESERVE]? {
-        [PATTERN, [!RESERVE]];
-        [RESERVE]? ^^;
     }
 }
 
@@ -53,13 +52,6 @@ let result(a, b, c) {
     a? b? c? -> 0;
     !b? !c? -> 0;
     -> 1;
-}
-
-let shift_view {
-    [!VIEW];
-    let x = [!PATTERN];
-    <x>? x <- 0;
-    [VIEW, x];
 }
 
 let dump {
