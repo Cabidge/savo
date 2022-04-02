@@ -4,6 +4,14 @@
 
 #define INITIAL_CAPACITY 16
 
+double __mod(double lhs, double rhs) {
+    if (rhs < 0) return -__mod(-lhs, -rhs);
+
+    double ret = fmod(lhs, rhs);
+
+    return (ret < 0) ? ret + rhs : ret;
+}
+
 typedef struct Deque {
     double *data;
     size_t capacity;

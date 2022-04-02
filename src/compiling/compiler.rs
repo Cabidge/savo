@@ -367,9 +367,13 @@ impl<'ctx> Compiler<'ctx> {
                     Op::Mul => fn_ctx.builder.build_float_mul(lhs, rhs, "mul"),
                     Op::Div => fn_ctx.builder.build_float_div(lhs, rhs, "div"),
                     Op::Mod => {
-                        let rem = fn_ctx.builder.build_float_rem(lhs, rhs, "rem");
-                        let offset = fn_ctx.builder.build_float_add(rem, rhs, "offset");
-                        fn_ctx.builder.build_float_rem(offset, rhs, "mod")
+                        let mod_fn = self.module.get_function("__mod").unwrap();
+                        fn_ctx.builder
+                              .build_call(mod_fn, &[lhs.into(), rhs.into()], "mod")
+                              .try_as_basic_value()
+                              .left()
+                              .unwrap()
+                              .into_float_value()
                     }
                     Op::Exp => {
                         let pow = self.module.get_function("pow").unwrap();

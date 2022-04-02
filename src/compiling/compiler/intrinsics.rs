@@ -21,6 +21,7 @@ pub(super) fn build<'ctx>(ctx: &'ctx Context, module: &Module<'ctx>) {
     let void_type = ctx.void_type();
 
     let void_f64_fn_type = void_type.fn_type(&[f64_type.into()], false);
+    let f64_f64_f64_fn_type = f64_type.fn_type(&[f64_type.into(), f64_type.into()], false);
 
     // -- dumpf
     module.add_function("__dumpf", void_f64_fn_type, None);
@@ -33,8 +34,10 @@ pub(super) fn build<'ctx>(ctx: &'ctx Context, module: &Module<'ctx>) {
     module.add_function("__getfc", getfc_fn_type, None);
 
     // -- pow
-    let pow_fn_type = f64_type.fn_type(&[f64_type.into(), f64_type.into()], false);
-    module.add_function("pow", pow_fn_type, None);
+    module.add_function("pow", f64_f64_f64_fn_type, None);
+
+    // -- mod
+    module.add_function("__mod", f64_f64_f64_fn_type, None);
 
     // -- Deque functions
     {
