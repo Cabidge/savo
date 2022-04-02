@@ -56,6 +56,13 @@ size_t __indexDeque(Deque *deque, size_t index) {
     return (deque->offset + index) % deque->capacity;
 }
 
+// Function to interface with savo for indexing deque
+double __atDeque(Deque *deque, double index) {
+    if (deque->size == 0 || isnan(index)) return NAN;
+    size_t wrapped_index = (size_t)__mod(index, (double)deque->size);
+    return deque->data[__indexDeque(deque, wrapped_index)];
+}
+
 double __getDeque(Deque *deque, size_t index) {
     if (deque->size == 0) return NAN;
     return deque->data[__indexDeque(deque, index)];
