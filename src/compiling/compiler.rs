@@ -462,6 +462,25 @@ impl<'ctx> Compiler<'ctx> {
                     .unwrap()
                     .into_float_value()
             }
+            Expr::DequeAt(name, index) => {
+                let index = self.build_expr(index, fn_ctx);
+
+                let at_deque_fn = self.module.get_function("__atDeque").unwrap();
+
+                let deque_ptr = self
+                    .module
+                    .get_global(name)
+                    .unwrap()
+                    .as_pointer_value();
+
+                let deque_ptr = fn_ctx.builder.build_load(deque_ptr, "");
+
+                fn_ctx.builder.build_call(at_deque_fn, &[deque_ptr.into(), index.into()], "")
+                    .try_as_basic_value()
+                    .left()
+                    .unwrap()
+                    .into_float_value()
+            }
         }
     }
 }

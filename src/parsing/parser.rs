@@ -51,6 +51,7 @@ pub enum Expr {
     PopHead(Token),
     PeekHead(Token),
     Len(Token), // Get the size of a deque
+    At(Token, Box<Expr>), // [S @ index] get value at index
 }
 
 #[derive(Debug)]
@@ -507,6 +508,12 @@ impl Parser {
             return Ok(Expr::Peek(ident_token));
         }
 
+        if self.eat_current(&TokenKind::At) {
+            let index = self.parse_expr()?;
+            expect_brack(self)?;
+            return Ok(Expr::At(ident_token, index.into()));
+        }
+
         if self.eat_current(&TokenKind::RBrack) {
             return Ok(Expr::Len(ident_token));
         }
@@ -655,6 +662,7 @@ impl fmt::Display for Expr {
             Expr::PopHead(tkn) => write!(f, "[!{}]", tkn.get_ident().unwrap()),
             Expr::PeekHead(tkn) => write!(f, "[?{}]", tkn.get_ident().unwrap()),
             Expr::Len(tkn) => write!(f, "[{}]", tkn.get_ident().unwrap()),
+            Expr::At(tkn, index) => write!(f, "[{} @ {}]", tkn.get_ident().unwrap(), index),
         }
     }
 }

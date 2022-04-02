@@ -342,6 +342,11 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
             };
             IRExpr::DequeExpr(name, func)
         },
+        Expr::At(tkn, index) => {
+            let index = resolve_expr(block.clone(), program, index)?;
+            let name = tkn.get_ident().expect("Expected ident token");
+            IRExpr::DequeAt(name, index.into())
+        }
     };
 
     Ok(expr)

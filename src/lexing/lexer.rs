@@ -61,6 +61,8 @@ pub enum TokenKind {
     LBrace, // {
     RBrace, // }
 
+    At, // @
+
     Error(ErrorKind),
     EOF,
 }
@@ -244,6 +246,10 @@ impl Lexer {
             return TokenKind::RBrace;
         }
 
+        if self.stream.eat_current('@') {
+            return TokenKind::At;
+        }
+
         if self.stream.eat_current('\'') {
             return match self.anal_char() {
                 Ok(ch) if self.stream.eat_current('\'') => TokenKind::Char(ch),
@@ -417,6 +423,8 @@ impl fmt::Display for TokenKind {
             TokenKind::RBrack => write!(f, "`]`"),
             TokenKind::LBrace => write!(f, "`{{`"),
             TokenKind::RBrace => write!(f, "`}}`"),
+
+            TokenKind::At => write!(f, "`@`"),
 
             TokenKind::EOF => write!(f, "`EOF`"),
             

@@ -48,6 +48,7 @@ pub enum Expr {
     Call(String, Vec<Expr>),
     Block(Vec<Stmt>),
     DequeExpr(String, &'static str),
+    DequeAt(String, Box<Expr>),
 }
 
 #[derive(Debug, Clone)]
