@@ -186,7 +186,7 @@ impl Global {
     fn type_of(&self) -> Ty {
         match self {
             Global::Num(_) => Ty::Num,
-            Global::Fun(_) => todo!(),
+            Global::Fun(block) => Ty::Fun(block.params.clone()),
             Global::Deq(_) => Ty::Deq,
         }
     }
