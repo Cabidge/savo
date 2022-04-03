@@ -13,7 +13,7 @@ use super::program::{
     Global,
     Ty,
 };
-use crate::lexing::TokenKind;
+use crate::lexing::{Token, TokenKind};
 use crate::parsing::*;
 
 enum Error {
@@ -152,29 +152,8 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> Re
         },
         Stmt::Set(tkn, value) => {
             let value = res_expr(&value)?;
-            let name = tkn.get_ident().expect("Set's token should be an ident");
-
-            let var_opt = block
-                .borrow()
-                .get_var(&name, &program.globals);
-
-            let name_res = match var_opt {
-                Some((name, Ty::Num)) => Ok(name),
-                Some(_) => Err(Error::MismatchedTypes {
-                    line: tkn.line,
-                    col: tkn.col,
-                }),
-                None => Err(Error::UndefinedVariable {
-                    name,
-                    line: tkn.line,
-                    col: tkn.col,
-                })
-            };
-
-            match name_res {
-                Ok(name) => IRStmt::Set(name, value),
-                Err(err) => return Err(vec![err]),
-            }
+            let name = resolve_var(block, tkn, &program.globals, Ty::Num)?;
+            IRStmt::Set(name, value)
         },
         Stmt::Break(value) => {
             let value = res_expr(&value)?;
@@ -259,29 +238,8 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
     let expr = match expr {
         Expr::Value(n) => IRExpr::Val(*n),
         Expr::Get(tkn) => {
-            let name = tkn.get_ident().expect("Get's token should be an ident");
-
-            let var_opt = block
-                .borrow()
-                .get_var(&name, &program.globals);
-
-            let name_res = match var_opt {
-                Some((name, Ty::Num)) => Ok(name),
-                Some(_) => Err(Error::MismatchedTypes {
-                    line: tkn.line,
-                    col: tkn.col,
-                }),
-                None => Err(Error::UndefinedVariable {
-                    name,
-                    line: tkn.line,
-                    col: tkn.col,
-                })
-            };
-
-            match name_res {
-                Ok(name) => IRExpr::Get(name),
-                Err(err) => return Err(vec![err]),
-            }
+            let name = resolve_var(block, tkn, &program.globals, Ty::Num)?;
+            IRExpr::Get(name)
         },
         Expr::BinOp(tkn, lhs, rhs) => {
             let lhs = resolve_expr(block.clone(), program, lhs)?;
@@ -365,6 +323,32 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
     };
 
     Ok(expr)
+}
+
+fn resolve_var(
+    block: Rc<RefCell<Block>>,
+    tkn: &Token,
+    globals: &HashMap<String, Global>,
+    expected_ty: Ty
+) -> ResolveResult<String> {
+    let name = tkn.get_ident().expect("Expected ident token");
+
+    let var_opt = block
+        .borrow()
+        .get_var(&name, globals);
+
+    match var_opt {
+        Some((name, ty)) if ty == expected_ty => Ok(name),
+        Some(_) => Err(Error::MismatchedTypes {
+            line: tkn.line,
+            col: tkn.col,
+        }),
+        None => Err(Error::UndefinedVariable {
+            name,
+            line: tkn.line,
+            col: tkn.col,
+        })
+    }.map_err(|err| vec![err])
 }
 
 fn calculate_literal(globals: &HashMap<String, Global>, expr: &Expr) -> f64 {

@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use crate::lexing::{ Token, TokenKind };
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Ty {
     Num,
     Fun(Vec<Ty>),
