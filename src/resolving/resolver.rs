@@ -22,6 +22,10 @@ enum Error {
         line: usize,
         col: usize,
     },
+    MismatchedTypes {
+        line: usize,
+        col: usize,
+    },
     UndefinedMain,
 }
 
@@ -70,6 +74,8 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
                 Error::UndefinedMain => eprintln!("Error: Required function `main` is not defined"),
                 Error::UndefinedVariable { name, line, col } =>
                     eprintln!("Error: Undefined variable `{}` at {}:{}", name, line, col),
+                Error::MismatchedTypes { line, col } =>
+                    eprintln!("Error: Mismatched types at {}:{}", line, col),
             }
         }
         Err(())
@@ -152,21 +158,23 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> Re
                 .borrow()
                 .get_var(&name, &program.globals);
 
-            let name = match var_opt {
-                Some((name, Ty::Num)) => name,
-                Some(_) => todo!(),
-                None => {
-                    let errs = vec![Error::UndefinedVariable {
-                        name,
-                        line: tkn.line,
-                        col: tkn.col,
-                    }];
-
-                    return Err(errs);
-                },
+            let name_res = match var_opt {
+                Some((name, Ty::Num)) => Ok(name),
+                Some(_) => Err(Error::MismatchedTypes {
+                    line: tkn.line,
+                    col: tkn.col,
+                }),
+                None => Err(Error::UndefinedVariable {
+                    name,
+                    line: tkn.line,
+                    col: tkn.col,
+                })
             };
 
-            IRStmt::Set(name, value)
+            match name_res {
+                Ok(name) => IRStmt::Set(name, value),
+                Err(err) => return Err(vec![err]),
+            }
         },
         Stmt::Break(value) => {
             let value = res_expr(&value)?;
@@ -257,21 +265,23 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
                 .borrow()
                 .get_var(&name, &program.globals);
 
-            let name = match var_opt {
-                Some((name, Ty::Num)) => name,
-                Some(_) => todo!(),
-                None => {
-                    let errs = vec![Error::UndefinedVariable {
-                        name,
-                        line: tkn.line,
-                        col: tkn.col,
-                    }];
-
-                    return Err(errs);
-                }
+            let name_res = match var_opt {
+                Some((name, Ty::Num)) => Ok(name),
+                Some(_) => Err(Error::MismatchedTypes {
+                    line: tkn.line,
+                    col: tkn.col,
+                }),
+                None => Err(Error::UndefinedVariable {
+                    name,
+                    line: tkn.line,
+                    col: tkn.col,
+                })
             };
 
-            IRExpr::Get(name)
+            match name_res {
+                Ok(name) => IRExpr::Get(name),
+                Err(err) => return Err(vec![err]),
+            }
         },
         Expr::BinOp(tkn, lhs, rhs) => {
             let lhs = resolve_expr(block.clone(), program, lhs)?;
