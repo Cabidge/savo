@@ -10,6 +10,8 @@ use super::program::{
     Op,
     Expr as IRExpr,
     Stmt as IRStmt,
+    Global,
+    Ty,
 };
 use crate::lexing::TokenKind;
 use crate::parsing::*;
@@ -34,12 +36,12 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
             Decl::Var(tkn, expr) => {
                 let name = tkn.get_ident().expect("Var's token should be an ident");
                 let value = calculate_literal(&program.globals, &expr);
-                program.globals.insert(name, value);
+                program.globals.insert(name, Global::Num(value));
             },
             Decl::Func{ name: tkn, params, body, .. } => {
                 let name = tkn.get_ident().expect("Func's token should be an ident");
                 match resolve_func(&program, params, body) {
-                    Ok(block) => { program.funcs.insert(name, block); },
+                    Ok(block) => { program.globals.insert(name, Global::Fun(block)); },
                     Err(mut errs) => errors.append(&mut errs),
                 }
             },
@@ -49,14 +51,15 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
                     .iter()
                     .map(|expr| calculate_literal(&program.globals, expr))
                     .collect::<Vec<_>>();
-                program.deques.insert(name, exprs);
+                program.globals.insert(name, Global::Deq(exprs));
             },
             _ => unimplemented!(),
         }
     }
 
-    if !program.funcs.contains_key("$main") {
-        errors.push(Error::UndefinedMain);
+    match program.globals.get("$main") {
+        Some(Global::Fun(_)) => (),
+        _ => errors.push(Error::UndefinedMain)
     }
 
     if errors.len() == 0 {
@@ -78,12 +81,12 @@ fn resolve_func(
     params: &[String],
     body: &[Decl]
 ) -> ResolveResult<BlockRoot> {
-    let mut block = Block::Root(BlockRoot::new(params.len()));
+    let mut block = Block::Root(BlockRoot::new(vec![Ty::Num; params.len()]));
     let mut errors = Vec::new();
 
     for (i, param) in params.iter().enumerate() {
-        block.define(param.clone());
-        let param = block.get_var_name(param, &program.globals).unwrap();
+        block.define(param.clone(), Ty::Num);
+        let (param, _) = block.get_var(param, &program.globals).unwrap();
         block.add_stmt(IRStmt::Set(param, IRExpr::Param(i)).into());
     }
 
@@ -118,8 +121,8 @@ fn resolve_decl(block: Rc<RefCell<Block>>, program: &Program, decl: &Decl) -> Re
         Decl::Var(tkn, initial) => {
             let initial = res_expr(&initial)?;
             let name = tkn.get_ident().expect("Var's token should be an ident");
-            block.borrow_mut().define(name.clone());
-            let name = block.borrow().get_var_name(&name, &program.globals).unwrap();
+            block.borrow_mut().define(name.clone(), Ty::Num);
+            let (name, _) = block.borrow().get_var(&name, &program.globals).unwrap();
             IRStmt::Set(name, initial)
         },
         Decl::Func{..} => todo!(),
@@ -145,12 +148,13 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> Re
             let value = res_expr(&value)?;
             let name = tkn.get_ident().expect("Set's token should be an ident");
 
-            let name_opt = block
+            let var_opt = block
                 .borrow()
-                .get_var_name(&name, &program.globals);
+                .get_var(&name, &program.globals);
 
-            let name = match name_opt {
-                Some(name) => name,
+            let name = match var_opt {
+                Some((name, Ty::Num)) => name,
+                Some(_) => todo!(),
                 None => {
                     let errs = vec![Error::UndefinedVariable {
                         name,
@@ -191,7 +195,7 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> Re
         Stmt::Push(tkn, exprs) => {
             let name = tkn.get_ident().expect("Push's token should be an ident");
 
-            if !program.deques.contains_key(&name) {
+            if !program.globals.contains_key(&name) {
                 let errs = vec![Error::UndefinedVariable {
                     name,
                     line: tkn.line,
@@ -249,12 +253,13 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
         Expr::Get(tkn) => {
             let name = tkn.get_ident().expect("Get's token should be an ident");
 
-            let name_opt = block
+            let var_opt = block
                 .borrow()
-                .get_var_name(&name, &program.globals);
+                .get_var(&name, &program.globals);
 
-            let name = match name_opt {
-                Some(name) => name,
+            let name = match var_opt {
+                Some((name, Ty::Num)) => name,
+                Some(_) => todo!(),
                 None => {
                     let errs = vec![Error::UndefinedVariable {
                         name,
@@ -352,10 +357,13 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
     Ok(expr)
 }
 
-fn calculate_literal(globals: &HashMap<String, f64>, expr: &Expr) -> f64 {
+fn calculate_literal(globals: &HashMap<String, Global>, expr: &Expr) -> f64 {
     match expr {
         Expr::Value(val) => *val,
-        Expr::Get(tkn) => globals[tkn.get_ident().unwrap().as_str()],
+        Expr::Get(tkn) => match globals[tkn.get_ident().unwrap().as_str()] {
+            Global::Num(n) => n,
+            _ => unimplemented!(),
+        }
         Expr::Negate(expr) => -calculate_literal(globals, &expr),
         Expr::Not(expr) => if calculate_literal(globals, &expr) == 0.0 { 1.0 } else { 0.0 },
         Expr::BinOp(tkn, lhs, rhs) => {

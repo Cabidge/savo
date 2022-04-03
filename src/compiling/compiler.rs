@@ -28,7 +28,7 @@ use inkwell::{
 use std::collections::HashMap;
 use std::process;
 
-use crate::resolving::{ Program, BlockRoot, Stmt, Expr, Op };
+use crate::resolving::{ Program, BlockRoot, Stmt, Expr, Ty, Global, Op };
 
 pub struct Compiler<'ctx> {
     pub ctx: &'ctx Context,
@@ -61,34 +61,40 @@ impl<'ctx> Compiler<'ctx> {
         let f64_type = self.ctx.f64_type();
         let ptr_type = self.ctx.bool_type().ptr_type(AddressSpace::Generic);
 
+        let mut deques = Vec::new();
+        let mut funcs = Vec::new();
+
         // Define globals
-        for (name, &value) in program.globals.iter() {
-            let global = self.module.add_global(f64_type, Some(AddressSpace::Global), name);
-            global.set_initializer(&f64_type.const_float(value));
-        }
-
-        // Define global deques
-        for name in program.deques.keys() {
-            let deque = self.module.add_global(ptr_type, Some(AddressSpace::Global), name);
-            deque.set_initializer(&ptr_type.const_null());
-        }
-
-        // Declare functions
-        for (name, block) in program.funcs.iter() {
-            let fn_type = f64_type.fn_type(&vec![f64_type.into(); block.param_count][..], false);
-            self.module.add_function(name, fn_type, None);
+        for (name, global) in program.globals.iter() {
+            match global {
+                Global::Num(n) => {
+                    let num = self.module.add_global(f64_type, Some(AddressSpace::Global), name);
+                    num.set_initializer(&f64_type.const_float(*n));
+                }
+                Global::Fun(block) => {
+                    // TODO: Correctly parse parameter types
+                    let fn_type = f64_type.fn_type(&vec![f64_type.into(); block.params.len()][..], false);
+                    self.module.add_function(name, fn_type, None);
+                    funcs.push((name.as_str(), block));
+                }
+                Global::Deq(vals) => {
+                    let deque = self.module.add_global(ptr_type, Some(AddressSpace::Global), name);
+                    deque.set_initializer(&ptr_type.const_null());
+                    deques.push((name.as_str(), vals));
+                }
+            }
         }
 
         // Define intrinsics
         intrinsics::build(&self.ctx, &self.module);
 
         // Define functions
-        for (name, block) in program.funcs.iter() {
+        for (name, block) in funcs {
             self.build_func(name, block);
         }
 
         // Define main
-        self.build_main(&program.deques);
+        self.build_main(&deques);
     }
 
     pub fn export(&self, out: &str) {
@@ -134,8 +140,9 @@ impl<'ctx> Compiler<'ctx> {
             .unwrap();
     }
 
-    fn build_main(&self, deques: &HashMap<String, Vec<f64>>) {
+    fn build_main(&self, deques: &[(&str, &Vec<f64>)]) {
         let i32_type = self.ctx.i32_type();
+        let f64_type = self.ctx.f64_type();
         let main_fn_type = i32_type.fn_type(&[], false);
         let main_fn = self.module.add_function("main", main_fn_type, None);
 
@@ -147,8 +154,7 @@ impl<'ctx> Compiler<'ctx> {
         builder.position_at_end(fn_block);
 
         // Construct deques
-        for (name, vals) in deques.iter() {
-            let f64_type = self.ctx.f64_type();
+        for (name, vals) in deques {
             let new_deque_fn = self.module.get_function("__newDeque").unwrap();
             let push_fn = self.module.get_function("__pushDeque").unwrap();
 
@@ -159,7 +165,7 @@ impl<'ctx> Compiler<'ctx> {
                 .unwrap()
                 .into_pointer_value();
 
-            for val in vals {
+            for val in *vals {
                 builder.build_call(
                     push_fn,
                     &[deque_ptr.into(), f64_type.const_float(*val).into()],
@@ -187,7 +193,7 @@ impl<'ctx> Compiler<'ctx> {
             .into_float_value();
 
         // Destruct deques
-        for name in deques.keys() {
+        for (name, _) in deques {
             let del_deque_fn = self.module.get_function("__delDeque").unwrap();
 
             let deque_ptr = self
@@ -231,9 +237,14 @@ impl<'ctx> Compiler<'ctx> {
 
         // Allocate locals
         let mut locals: LocalPtrs<'ctx> = HashMap::new();
-        for local in block.get_vars().iter() {
-            let local_ptr = builder.build_alloca(f64_type, local);
-            locals.insert(local.to_string(), local_ptr);
+        for (name, ty) in block.get_vars().iter() {
+            match ty {
+                Ty::Num => {
+                    let local_ptr = builder.build_alloca(f64_type, name);
+                    locals.insert(name.to_string(), local_ptr);
+                }
+                _ => todo!()
+            }
         }
 
         // Compile statements
