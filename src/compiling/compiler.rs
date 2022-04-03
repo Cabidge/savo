@@ -9,6 +9,7 @@ use inkwell::{
         FloatValue,
         PointerValue,
         FunctionValue,
+        CallableValue,
         InstructionOpcode,
     },
     AddressSpace,
@@ -426,7 +427,15 @@ impl<'ctx> Compiler<'ctx> {
                     .map(|expr| self.build_expr(expr, fn_ctx).into())
                     .collect::<Vec<BasicMetadataValueEnum>>();
                 
-                let func = self.module.get_function(name).unwrap();
+                let func = {
+                    match self.get_var_ptr(name, Some(&fn_ctx.locals)) {
+                        Some(ptr) => {
+                            let func_ptr = fn_ctx.builder.build_load(ptr, "").into_pointer_value();
+                            CallableValue::try_from(func_ptr).unwrap()
+                        }
+                        None => self.module.get_function(name).unwrap().into()
+                    }
+                };
 
                 fn_ctx.builder.build_call(func, &args[..], &format!("call {}", name))
                     .try_as_basic_value()
