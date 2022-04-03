@@ -180,16 +180,7 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> Re
         },
         Stmt::Rewind => IRStmt::Rewind,
         Stmt::Push(tkn, exprs) => {
-            let name = tkn.get_ident().expect("Push's token should be an ident");
-
-            if !program.globals.contains_key(&name) {
-                let errs = vec![Error::UndefinedVariable {
-                    name,
-                    line: tkn.line,
-                    col: tkn.col,
-                }];
-                return Err(errs);
-            }
+            let name = resolve_var(block.clone(), tkn, &program.globals, Ty::Deq)?;
 
             let mut stmts = Vec::new();
 
@@ -304,7 +295,7 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
         Expr::Pull => IRExpr::Call("__getfc".to_string(), Vec::new()),
         Expr::Pop(tkn) | Expr::Peek(tkn) | Expr::PopHead(tkn) |
         Expr::PeekHead(tkn) | Expr::Len(tkn) => {
-            let name = tkn.get_ident().expect("Expected ident token");
+            let name = resolve_var(block, tkn, &program.globals, Ty::Deq)?;
             let func = match expr {
                 Expr::Pop(_) => "__popDeque",
                 Expr::Peek(_) => "__peekDeque",
@@ -316,8 +307,8 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
             IRExpr::DequeExpr(name, func)
         },
         Expr::At(tkn, index) => {
-            let index = resolve_expr(block.clone(), program, index)?;
-            let name = tkn.get_ident().expect("Expected ident token");
+            let name = resolve_var(block.clone(), tkn, &program.globals, Ty::Deq)?;
+            let index = resolve_expr(block, program, index)?;
             IRExpr::DequeAt(name, index.into())
         }
     };
