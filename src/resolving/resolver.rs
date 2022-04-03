@@ -26,6 +26,7 @@ enum Error {
         line: usize,
         col: usize,
     },
+    DuplicateGlobal(String),
     UndefinedMain,
 }
 
@@ -35,17 +36,23 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
     let mut program = Program::new();
     let mut errors = Vec::new();
 
+    fn add_glob(globals: &mut HashMap<String, Global>, errors: &mut Vec<Error>, name: String, glob: Global) {
+        if globals.insert(name.clone(), glob).is_some() {
+            errors.push(Error::DuplicateGlobal(name));
+        }
+    }
+
     for decl in decls.iter() {
         match decl {
             Decl::Var(tkn, expr) => {
                 let name = tkn.get_ident().expect("Var's token should be an ident");
                 let value = calculate_literal(&program.globals, &expr);
-                program.globals.insert(name, Global::Num(value));
+                add_glob(&mut program.globals, &mut errors, name, Global::Num(value));
             },
             Decl::Func{ name: tkn, params, body, .. } => {
                 let name = tkn.get_ident().expect("Func's token should be an ident");
                 match resolve_func(&program, params, body) {
-                    Ok(block) => { program.globals.insert(name, Global::Fun(block)); },
+                    Ok(block) => add_glob(&mut program.globals, &mut errors, name, Global::Fun(block)),
                     Err(mut errs) => errors.append(&mut errs),
                 }
             },
@@ -55,7 +62,7 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
                     .iter()
                     .map(|expr| calculate_literal(&program.globals, expr))
                     .collect::<Vec<_>>();
-                program.globals.insert(name, Global::Deq(exprs));
+                add_glob(&mut program.globals, &mut errors, name, Global::Deq(exprs));
             },
             _ => unimplemented!(),
         }
@@ -76,6 +83,8 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
                     eprintln!("Error: Undefined variable `{}` at {}:{}", name, line, col),
                 Error::MismatchedTypes { line, col } =>
                     eprintln!("Error: Mismatched types at {}:{}", line, col),
+                Error::DuplicateGlobal(name) =>
+                    eprintln!("Error: Duplicate global declaration `{}`", name),
             }
         }
         Err(())
