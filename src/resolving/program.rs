@@ -195,6 +195,26 @@ impl Global {
     }
 }
 
+impl fmt::Display for Ty {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Ty::Num => write!(f, "number"),
+            Ty::Deq => write!(f, "deque"),
+            Ty::Fun(params) => {
+                write!(f, "func(")?;
+                if let Some(p) = params.get(0) {
+                    p.fmt(f)?;
+                }
+
+                for p in &params[1..] {
+                    write!(f, " {}", p)?;
+                }
+                write!(f, ")")
+            }
+        }
+    }
+}
+
 impl TryFrom<&TokenKind> for Op {
     type Error = ();
     fn try_from(tkn_kind: &TokenKind) -> Result<Self, Self::Error> {
