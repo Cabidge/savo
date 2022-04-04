@@ -6,12 +6,14 @@ use crate::lexing::{ Token, TokenKind };
 
 #[derive(Clone, PartialEq)]
 pub enum Ty {
+    Unresolved,
     Num,
     Fun(Vec<Ty>),
     Deq,
 }
 
 pub enum Global {
+    Unresolved,
     Num(f64),
     Fun(BlockRoot),
     Deq(Vec<f64>),
@@ -188,6 +190,7 @@ impl SubBlock {
 impl Global {
     pub fn type_of(&self) -> Ty {
         match self {
+            Global::Unresolved => Ty::Unresolved,
             Global::Num(_) => Ty::Num,
             Global::Fun(block) => Ty::Fun(block.params.clone()),
             Global::Deq(_) => Ty::Deq,
@@ -213,6 +216,7 @@ impl fmt::Display for Ty {
                 }
                 write!(f, ")")
             }
+            Ty::Unresolved => write!(f, "?"),
         }
     }
 }

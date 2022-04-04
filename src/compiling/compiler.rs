@@ -82,6 +82,7 @@ impl<'ctx> Compiler<'ctx> {
                     deque.set_initializer(&ptr_type.const_null());
                     deques.push((name.as_str(), vals));
                 }
+                Global::Unresolved => unreachable!(),
             }
         }
 

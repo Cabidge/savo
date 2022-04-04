@@ -46,12 +46,16 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
                 let value = calculate_literal(&program.globals, &expr);
                 add_glob(&mut program.globals, &mut errors, name, Global::Num(value));
             },
-            Decl::Func{ name: tkn, params, body, .. } => {
+            Decl::Func { name: tkn, params, body, .. } => {
                 let name = tkn.get_ident().expect("Func's token should be an ident");
-                match resolve_func(name.clone(), &mut program, params, body) {
-                    Ok(block) => add_glob(&mut program.globals, &mut errors, name, Global::Fun(block)),
-                    Err(mut errs) => errors.append(&mut errs),
-                }
+                let glob = match resolve_func(name.clone(), &mut program, params, body) {
+                    Ok(block) => Global::Fun(block),
+                    Err(mut errs) => {
+                        errors.append(&mut errs);
+                        Global::Unresolved
+                    }
+                };
+                add_glob(&mut program.globals, &mut errors, name, glob);
             },
             Decl::Deque(tkn, exprs) => {
                 let name = tkn.get_ident().expect("Deque's token should be an ident");
@@ -66,7 +70,7 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
     }
 
     match program.globals.get("$main") {
-        Some(Global::Fun(_)) => (),
+        Some(Global::Fun(_) | Global::Unresolved) => (),
         _ => errors.push(Error::UndefinedMain)
     }
 
@@ -351,7 +355,9 @@ fn resolve_var(
         .get_var(&name, globals);
 
     match var_opt {
-        Some((name, ty)) if ty == expected_ty => Ok(name),
+        Some((name, ty))
+            if ty == expected_ty
+            || ty == Ty::Unresolved => Ok(name),
         Some((_, ty)) => Err(
             PositionalError::MismatchedTypes {
                 expect: expected_ty, 
