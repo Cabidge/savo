@@ -17,17 +17,14 @@ use crate::lexing::{Token, TokenKind};
 use crate::parsing::*;
 
 enum Error {
-    UndefinedVariable {
-        name: String,
-        line: usize,
-        col: usize,
-    },
-    MismatchedTypes {
-        line: usize,
-        col: usize,
-    },
+    Positional(PositionalError, usize, usize),
     DuplicateGlobal(String),
     UndefinedMain,
+}
+
+enum PositionalError {
+    UndefinedVariable(String),
+    MismatchedTypes { expect: Ty, got: Ty },
 }
 
 type ResolveResult<T> = Result<T, Vec<Error>>;
@@ -77,15 +74,22 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
         Ok(program)
     } else {
         for err in errors {
-            match err {
-                Error::UndefinedMain => eprintln!("Error: Required function `main` is not defined"),
-                Error::UndefinedVariable { name, line, col } =>
-                    eprintln!("Error: Undefined variable `{}` at {}:{}", name, line, col),
-                Error::MismatchedTypes { line, col } =>
-                    eprintln!("Error: Mismatched types at {}:{}", line, col),
+            let msg = match err {
+                Error::UndefinedMain => "Required function `main` is not defined".to_string(),
                 Error::DuplicateGlobal(name) =>
-                    eprintln!("Error: Duplicate global declaration `{}`", name),
-            }
+                    format!("Duplicate global declaration `{}`", name),
+                Error::Positional(err, line, col) => {
+                    let msg = match err {
+                        PositionalError::UndefinedVariable(name) =>
+                            format!("Undefined variable `{}`", name),
+                        PositionalError::MismatchedTypes { expect, got } =>
+                            format!("Expected {} but got {}", expect, got),
+                    };
+                    format!("{} at {}:{}", msg, line, col)
+                }
+            };
+
+            eprintln!("Error: {}", msg);
         }
         Err(())
     }
@@ -348,16 +352,21 @@ fn resolve_var(
 
     match var_opt {
         Some((name, ty)) if ty == expected_ty => Ok(name),
-        Some(_) => Err(Error::MismatchedTypes {
-            line: tkn.line,
-            col: tkn.col,
-        }),
-        None => Err(Error::UndefinedVariable {
-            name,
-            line: tkn.line,
-            col: tkn.col,
-        })
+        Some((_, ty)) => Err(
+            PositionalError::MismatchedTypes {
+                expect: expected_ty, 
+                got: ty,
+            }
+            .at(tkn.line, tkn.col)
+        ),
+        None => Err(PositionalError::UndefinedVariable(name).at(tkn.line, tkn.col)),
     }.map_err(|err| vec![err])
+}
+
+impl PositionalError {
+    fn at(self, line: usize, col: usize) -> Error {
+        Error::Positional(self, line, col)
+    }
 }
 
 fn calculate_literal(globals: &HashMap<String, Global>, expr: &Expr) -> f64 {
