@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::fmt;
 
 use super::program::{
     Program,
@@ -78,22 +79,7 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
         Ok(program)
     } else {
         for err in errors {
-            let msg = match err {
-                Error::UndefinedMain => "Required function `main` is not defined".to_string(),
-                Error::DuplicateGlobal(name) =>
-                    format!("Duplicate global declaration `{}`", name),
-                Error::Positional(err, line, col) => {
-                    let msg = match err {
-                        PositionalError::UndefinedVariable(name) =>
-                            format!("Undefined variable `{}`", name),
-                        PositionalError::MismatchedTypes { expect, got } =>
-                            format!("Expected {} but got {}", expect, got),
-                    };
-                    format!("{} at {}:{}", msg, line, col)
-                }
-            };
-
-            eprintln!("Error: {}", msg);
+            eprintln!("Error: {}", err);
         }
         Err(())
     }
@@ -421,5 +407,24 @@ fn calculate_literal(globals: &HashMap<String, Global>, expr: &Expr) -> f64 {
             }
         },
         _ => unimplemented!(),
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::UndefinedMain => write!(f, "Required function `main` is not defined"),
+            Error::DuplicateGlobal(name) =>
+                write!(f, "Duplicate global declaration `{}`", name),
+            Error::Positional(err, line, col) => {
+                match err {
+                    PositionalError::UndefinedVariable(name) =>
+                        write!(f, "Undefined variable `{}`", name),
+                    PositionalError::MismatchedTypes { expect, got } =>
+                        write!(f, "Expected {} but got {}", expect, got),
+                }?;
+                write!(f, " at {}:{}", line, col)
+            }
+        }
     }
 }
