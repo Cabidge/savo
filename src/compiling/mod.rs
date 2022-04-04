@@ -29,7 +29,7 @@ pub fn compile_program(program: &Program, out: &str) {
     let compiler = Compiler::new(&ctx);
     compiler.compile(program);
 
-    println!("{}", compiler.module.print_to_string().to_string());
+    //println!("{}", compiler.module.print_to_string().to_string());
 
     compiler.export(out)
 }
