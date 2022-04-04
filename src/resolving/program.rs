@@ -206,8 +206,10 @@ impl fmt::Display for Ty {
                     p.fmt(f)?;
                 }
 
-                for p in &params[1..] {
-                    write!(f, " {}", p)?;
+                if params.len() > 1 {
+                    for p in &params[1..] {
+                        write!(f, " {}", p)?;
+                    }
                 }
                 write!(f, ")")
             }
