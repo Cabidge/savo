@@ -22,6 +22,7 @@ pub struct Program {
 }
 
 pub struct BlockRoot {
+    pub name: String,
     pub params: Vec<Ty>,
     pub stmts: Vec<Stmt>,
     vars: HashMap<String, Vec<Ty>>,
@@ -39,6 +40,7 @@ pub struct SubBlock {
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
+    NoOp,
     Cond(Box<Stmt>, Expr),
     Set(String, Expr),
     Break(Expr),
@@ -96,16 +98,17 @@ impl fmt::Display for Program {
 }
 
 impl BlockRoot {
-    pub fn new(params: Vec<Ty>) -> Self {
+    pub fn new(name: String, params: Vec<Ty>) -> Self {
         Self {
+            name,
             params,
             stmts: Vec::new(),
             vars: HashMap::new(),
         }
     }
 
-    fn format_var(id: usize, name: &str) -> String {
-        format!("{} #{}", name, id)
+    fn format_var(&self, id: usize, name: &str) -> String {
+        format!("{} #{} - {}", name, id, &self.name)
     }
 
     pub(super) fn define(&mut self, name: String, ty: Ty) {
@@ -117,7 +120,7 @@ impl BlockRoot {
             .map(|types| {
                 let id = types.len();
                 let ty = types.last().expect("Expect at least one type in vars vec");
-                let var_name = Self::format_var(id, name);
+                let var_name = self.format_var(id, name);
                 (var_name, ty.clone())
             })
             .or_else(||
@@ -131,7 +134,7 @@ impl BlockRoot {
 
         for (name, types) in self.vars.iter() {
             for (n, ty) in types.iter().enumerate() {
-                let full_name = Self::format_var(n + 1, name);
+                let full_name = self.format_var(n + 1, name);
                 vars.push((full_name, ty.clone()));
             }
         }
@@ -183,7 +186,7 @@ impl SubBlock {
 }
 
 impl Global {
-    fn type_of(&self) -> Ty {
+    pub fn type_of(&self) -> Ty {
         match self {
             Global::Num(_) => Ty::Num,
             Global::Fun(block) => Ty::Fun(block.params.clone()),

@@ -9,7 +9,6 @@ use inkwell::{
         FloatValue,
         PointerValue,
         FunctionValue,
-        CallableValue,
         InstructionOpcode,
     },
     AddressSpace,
@@ -244,6 +243,7 @@ impl<'ctx> Compiler<'ctx> {
                     let local_ptr = builder.build_alloca(f64_type, name);
                     locals.insert(name.to_string(), local_ptr);
                 }
+                Ty::Fun(..) => (),
                 _ => todo!()
             }
         }
@@ -281,6 +281,7 @@ impl<'ctx> Compiler<'ctx> {
 
     fn build_stmt(&self, stmt: &Stmt, fn_ctx: &FuncContext<'ctx>, block_ctx: &BlockContext<'ctx>) {
         match stmt {
+            Stmt::NoOp => (),
             Stmt::Cond(stmt, cond) => {
                 let bool_type = self.ctx.bool_type();
                 let cond = self.build_expr(&cond, fn_ctx);
@@ -427,15 +428,7 @@ impl<'ctx> Compiler<'ctx> {
                     .map(|expr| self.build_expr(expr, fn_ctx).into())
                     .collect::<Vec<BasicMetadataValueEnum>>();
                 
-                let func = {
-                    match self.get_var_ptr(name, Some(&fn_ctx.locals)) {
-                        Some(ptr) => {
-                            let func_ptr = fn_ctx.builder.build_load(ptr, "").into_pointer_value();
-                            CallableValue::try_from(func_ptr).unwrap()
-                        }
-                        None => self.module.get_function(name).unwrap().into()
-                    }
-                };
+                let func = self.module.get_function(name).unwrap();
 
                 fn_ctx.builder.build_call(func, &args[..], &format!("call {}", name))
                     .try_as_basic_value()

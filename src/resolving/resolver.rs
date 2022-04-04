@@ -51,7 +51,7 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
             },
             Decl::Func{ name: tkn, params, body, .. } => {
                 let name = tkn.get_ident().expect("Func's token should be an ident");
-                match resolve_func(&program, params, body) {
+                match resolve_func(name.clone(), &mut program, params, body) {
                     Ok(block) => add_glob(&mut program.globals, &mut errors, name, Global::Fun(block)),
                     Err(mut errs) => errors.append(&mut errs),
                 }
@@ -92,11 +92,12 @@ pub fn resolve_decls(decls: &[Decl]) -> Result<Program, ()> {
 }
 
 fn resolve_func(
-    program: &Program,
+    name: String,
+    program: &mut Program,
     params: &[String],
     body: &[Decl]
 ) -> ResolveResult<BlockRoot> {
-    let mut block = Block::Root(BlockRoot::new(vec![Ty::Num; params.len()]));
+    let mut block = Block::Root(BlockRoot::new(name, vec![Ty::Num; params.len()]));
     let mut errors = Vec::new();
 
     for (i, param) in params.iter().enumerate() {
@@ -129,8 +130,8 @@ fn resolve_func(
     }
 }
 
-fn resolve_decl(block: Rc<RefCell<Block>>, program: &Program, decl: &Decl) -> ResolveResult<()> {
-    let res_expr = |expr| resolve_expr(block.clone(), program, expr);
+fn resolve_decl(block: Rc<RefCell<Block>>, program: &mut Program, decl: &Decl) -> ResolveResult<()> {
+    let mut res_expr = |expr| resolve_expr(block.clone(), program, expr);
 
     let stmt = match decl {
         Decl::Var(tkn, initial) => {
@@ -140,7 +141,15 @@ fn resolve_decl(block: Rc<RefCell<Block>>, program: &Program, decl: &Decl) -> Re
             let (name, _) = block.borrow().get_var(&name, &program.globals).unwrap();
             IRStmt::Set(name, initial)
         },
-        Decl::Func{..} => todo!(),
+        Decl::Func { name: tkn, params, body, .. } => {
+            let name = tkn.get_ident().expect("Func's token should be an ident");
+            let fn_block = resolve_func(name.clone(), program, params, body)?;
+            let glob = Global::Fun(fn_block);
+            block.borrow_mut().define(name.clone(), glob.type_of());
+            let (name, _) = block.borrow().get_var(&name, &program.globals).unwrap();
+            program.globals.insert(name, glob);
+            IRStmt::NoOp
+        }
         Decl::Deque(..) => todo!(),
         Decl::Stmt(stmt) => resolve_stmt(block.clone(), program, &stmt)?,
     };
@@ -150,8 +159,8 @@ fn resolve_decl(block: Rc<RefCell<Block>>, program: &Program, decl: &Decl) -> Re
     Ok(())
 }
 
-fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> ResolveResult<IRStmt> {
-    let res_expr = |expr| resolve_expr(block.clone(), program, expr);
+fn resolve_stmt(block: Rc<RefCell<Block>>, program: &mut Program, stmt: &Stmt) -> ResolveResult<IRStmt> {
+    let mut res_expr = |expr| resolve_expr(block.clone(), program, expr);
 
     let stmt = match stmt {
         Stmt::Cond(stmt, cond) => {
@@ -207,7 +216,7 @@ fn resolve_stmt(block: Rc<RefCell<Block>>, program: &Program, stmt: &Stmt) -> Re
     Ok(stmt)
 }
 
-fn resolve_scope(parent: Rc<RefCell<Block>>, program: &Program, decls: &[Decl]) -> ResolveResult<Vec<IRStmt>> {
+fn resolve_scope(parent: Rc<RefCell<Block>>, program: &mut Program, decls: &[Decl]) -> ResolveResult<Vec<IRStmt>> {
     let block = Rc::new(RefCell::new(Block::Sub(SubBlock::from(parent))));
     let mut errors = Vec::new();
 
@@ -234,7 +243,7 @@ fn resolve_scope(parent: Rc<RefCell<Block>>, program: &Program, decls: &[Decl]) 
     }
 }
 
-fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> ResolveResult<IRExpr> {
+fn resolve_expr(block: Rc<RefCell<Block>>, program: &mut Program, expr: &Expr) -> ResolveResult<IRExpr> {
     let expr = match expr {
         Expr::Value(n) => IRExpr::Val(*n),
         Expr::Get(tkn) => {
@@ -294,7 +303,7 @@ fn resolve_expr(block: Rc<RefCell<Block>>, program: &Program, expr: &Expr) -> Re
                 new_args.push(resolve_expr(block.clone(), program, old_arg)?);
             }
 
-            let fn_name = tkn.get_ident().unwrap();
+            let fn_name = resolve_var(block, tkn, &program.globals, Ty::Fun(vec![Ty::Num; args.len()]))?;
             IRExpr::Call(fn_name, new_args)
         },
         Expr::Block(stmts) => {
